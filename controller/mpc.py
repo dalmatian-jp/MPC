@@ -168,20 +168,34 @@ class NonlinearMPCControllerCasADi(Controller):
 
             opti = ca.Opti()
 
-            U = opti.variable(self.N * self.nu)
+            U = opti.variable(self.N * self.nu)  # 制御入力変数
             x = ca.MX(x0)
             cost = 0
+
+            # トルク制限の上限と下限
+            t_min_a = -100  # 足首のトルクの最小値
+            t_max_a = 100   # 足首のトルクの最大値
+            t_min_h = -150  # 股関節のトルクの最小値
+            t_max_h = 150   # 股関節のトルクの最大値
+
+            # コスト関数とシステムの状態更新
             for i in range(self.N):
                 u = U[i * self.nu : (i + 1) * self.nu]
                 x = self.predict_state(x, u, self.horizon_dt)
                 cost += ca.mtimes([(x - ref).T, self.Q, (x - ref)]) + ca.mtimes([u.T, self.R, u])
 
-            opti.minimize(cost)
-            for i in range(self.N * self.nu):
-                opti.subject_to(U[i] >= -300)
-                opti.subject_to(U[i] <= 300)
+                # 制御入力 u の次元が1次元の場合に対応
+                if self.nu == 1:
+                    opti.subject_to(u[0] >= t_min_a)  # 足首のトルク制約
+                    opti.subject_to(u[0] <= t_max_a)
+                else:
+                    opti.subject_to(u[0] >= t_min_a)  # 足首のトルク制約
+                    opti.subject_to(u[0] <= t_max_a)
+                    opti.subject_to(u[1] >= t_min_h)  # 股関節のトルク制約
+                    opti.subject_to(u[1] <= t_max_h)
 
-           
+            opti.minimize(cost)
+
             opts = {"ipopt.print_level": 0, "print_time": 0}
             opti.solver("ipopt", opts)
 
