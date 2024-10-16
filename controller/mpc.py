@@ -77,8 +77,6 @@ class NonlinearMPCControllerCasADi(Controller):
         self.alpha3 = dynamics.alpha3
         self.alpha4 = dynamics.alpha4
         self.alpha5 = dynamics.alpha5
-        self.f1 = dynamics.f1
-        self.f2 = dynamics.f2
         self.c1 = dynamics.c1
         self.c2 = dynamics.c2
 
@@ -183,6 +181,7 @@ class NonlinearMPCControllerCasADi(Controller):
                 opti.subject_to(U[i] >= -300)
                 opti.subject_to(U[i] <= 300)
 
+           
             opts = {"ipopt.print_level": 0, "print_time": 0}
             opti.solver("ipopt", opts)
 

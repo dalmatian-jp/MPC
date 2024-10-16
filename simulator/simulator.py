@@ -1,5 +1,5 @@
 import numpy as np
-
+import pandas as pd
 
 class Simulator:
     def __init__(
@@ -120,6 +120,9 @@ class Simulator:
             self.observer.update(y_k)
             self.estimated_states.append(self.observer.get_state_estimate())
 
+        # データをCSVに保存
+        self.save_to_csv()
+
         return (
             np.array(self.states),
             np.array(self.estimated_states),
@@ -129,6 +132,23 @@ class Simulator:
             np.array(self.diff_history),
             self.success_time,
         )
+
+    def save_to_csv(self):
+        # シミュレーションの結果をデータフレームにまとめる
+        data = {
+            'time': self.time,
+            'states': [list(state) for state in self.states],
+            'estimated_states': [list(state) for state in self.estimated_states],
+            'observed_states': [list(state) for state in self.observed_states],
+            'control_inputs': [list(u) for u in self.control_inputs],
+            'delayed_inputs': [list(u) for u in self.delayed_inputs],
+            'diff_history': self.diff_history
+        }
+        df = pd.DataFrame(data)
+        
+        # CSVファイルに保存
+        df.to_csv('simulation_results.csv', index=False)
+        print("シミュレーション結果が 'simulation_results.csv' に保存されました。")
 
     def normalize_state(self, state):
         state[0] = (state[0] + np.pi) % (2 * np.pi) - np.pi

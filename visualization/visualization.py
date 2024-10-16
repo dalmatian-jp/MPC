@@ -6,6 +6,7 @@ from matplotlib.gridspec import GridSpec
 from scipy.spatial import ConvexHull
 
 
+
 class Visualization:
     def __init__(
         self,
@@ -30,7 +31,6 @@ class Visualization:
         use_estimates,
         use_quantize,
         encoder_resolution,
-        friction_compensations,
         save_dir=None,
         save_format="gif",
     ):
@@ -55,7 +55,6 @@ class Visualization:
         self.use_estimates = use_estimates
         self.use_quantize = use_quantize
         self.encoder_resolution = encoder_resolution
-        self.friction_compensations = friction_compensations
         self.save_dir = save_dir
         self.save_format = save_format
 
@@ -130,15 +129,18 @@ class Visualization:
             c="sandybrown",
             linestyle="--",
         )
-        if len(self.friction_compensations) > 0:
-            ax2.plot(
-                self.time,
-                self.friction_compensations,
-                label="Friction compensation",
-                c="brown",
-                linestyle="--",
-                linewidth=1,
-            )
+
+        # 摩擦補償のプロットは不要になったので削除
+        # if len(self.friction_compensations) > 0:
+        #     ax2.plot(
+        #         self.time,
+        #         self.friction_compensations,
+        #         label="Friction compensation",
+        #         c="brown",
+        #         linestyle="--",
+        #         linewidth=1,
+        #     )
+
         ax2.set_xlabel("Time (s)")
         ax2.set_ylabel("Input")
         ax2.legend()

@@ -1,13 +1,11 @@
 import numpy as np
 
 from dynamics.base import Dynamics
-from utils.math import sign
 
 G = 9.8  # acceleration due to gravity, in m/s^2
 
-
 class DoubleInvertedPendulumDynamics(Dynamics):
-    def __init__(self, L1, L2, l1, l2, M1, M2, I1, I2, c1, c2, f1, f2, use_linearlized_dynamics):
+    def __init__(self, L1, L2, l1, l2, M1, M2, I1, I2, c1, c2, use_linearlized_dynamics):
         self.L1 = L1
         self.L2 = L2
         self.l1 = l1
@@ -18,8 +16,6 @@ class DoubleInvertedPendulumDynamics(Dynamics):
         self.I2 = I2
         self.c1 = c1
         self.c2 = c2
-        self.f1 = f1
-        self.f2 = f2
         self.alpha1 = I1 + M1 * l1**2 + M2 * L1**2
         self.alpha2 = I2 + M2 * l2**2
         self.alpha3 = M2 * L1 * l2
@@ -33,8 +29,6 @@ class DoubleInvertedPendulumDynamics(Dynamics):
                 self.alpha3,
                 self.alpha4,
                 self.alpha5,
-                f1,
-                f2,
                 c1,
                 c2,
             ]
@@ -91,7 +85,7 @@ class DoubleInvertedPendulumDynamics(Dynamics):
         return state_dot
 
     def update_state_with_nonlinear_dynamics(self, state, t, u):
-        # 倒立振子で学ぶ制御工学 (3.54) (3.55) に摩擦を追加する
+        
         theta1, theta1_dot, theta2, theta2_dot = state
 
         theta12 = theta1 - theta2
@@ -102,14 +96,12 @@ class DoubleInvertedPendulumDynamics(Dynamics):
         theta1_ddot = (
             -self.alpha2 * self.alpha3 * sin_theta12 * theta2_dot**2
             + self.alpha2 * self.alpha4 * np.sin(theta1)
-            - self.alpha2 * self.f1 * sign(theta1_dot)
             - self.alpha2 * self.c1 * theta1_dot
             - self.alpha2 * self.c2 * theta1_dot
             + self.alpha2 * self.c2 * theta2_dot
             + self.alpha2 * u
             - self.alpha3**2 * sin_theta12 * cos_theta12 * theta1_dot**2
             - self.alpha3 * self.alpha5 * np.sin(theta2) * cos_theta12
-            + self.alpha3 * self.f2 * sign(-theta1_dot + theta2_dot)
             - self.alpha3 * self.c2 * cos_theta12 * theta1_dot
             + self.alpha3 * self.c2 * cos_theta12 * theta2_dot
         ) / denominator
@@ -117,12 +109,10 @@ class DoubleInvertedPendulumDynamics(Dynamics):
         theta2_ddot = (
             self.alpha1 * self.alpha3 * sin_theta12 * theta1_dot**2
             + self.alpha1 * self.alpha5 * np.sin(theta2)
-            - self.alpha1 * self.f2 * sign(-theta1_dot + theta2_dot)
             + self.alpha1 * self.c2 * theta1_dot
             - self.alpha1 * self.c2 * theta2_dot
             + self.alpha3**2 * sin_theta12 * cos_theta12 * theta2_dot**2
             - self.alpha3 * self.alpha4 * np.sin(theta1) * cos_theta12
-            + self.alpha3 * self.f1 * sign(theta1_dot)
             + self.alpha3 * self.c1 * cos_theta12 * theta1_dot
             + self.alpha3 * self.c2 * cos_theta12 * theta1_dot
             - self.alpha3 * self.c2 * cos_theta12 * theta2_dot

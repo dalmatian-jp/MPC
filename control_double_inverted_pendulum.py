@@ -24,8 +24,6 @@ def run_roa(theta1, theta2, progress_list, total_trials):
 def run(initial_state, visualize=True):
     L1 = 2.0
     L2 = 2.0
-    f1 = 0.0
-    f2 = 0.0
 
     dt = 0.02
     dead_time = 0.0
@@ -36,6 +34,7 @@ def run(initial_state, visualize=True):
 
     controller_dt = 0.02
 
+    # 摩擦項は削除されました
     dynamics = DoubleInvertedPendulumDynamics(
         L1=L1,
         L2=L2,
@@ -47,8 +46,6 @@ def run(initial_state, visualize=True):
         I2=1.0 / 3,
         c1=0.3,
         c2=0.3,
-        f1=f1,
-        f2=f2,
         use_linearlized_dynamics=False,
     )
     desired_state = np.radians([0.0, 0.0, 0.0, 0.0])
@@ -98,7 +95,6 @@ def run(initial_state, visualize=True):
     ) = simulator.run()
     end_time = time.time()
     processing_time = end_time - start_time
-    friction_compensations = controller.get_friction_compensations()
 
     if visualize:
         visualization = Visualization(
@@ -113,8 +109,8 @@ def run(initial_state, visualize=True):
             simulator.time,
             L1,
             L2,
-            f1,
-            f2,
+            0.0,  # f1 を削除
+            0.0,  # f2 を削除
             initial_state,
             dt,
             controller_dt,
@@ -123,7 +119,6 @@ def run(initial_state, visualize=True):
             use_estimates,
             use_quantize,
             encoder_resolution,
-            friction_compensations,
             save_dir="videos",
             save_format="mp4",
         )
