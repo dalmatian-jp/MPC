@@ -125,3 +125,43 @@ class DoubleInvertedPendulumDynamics(Dynamics):
         dxdt[2] = theta2_dot
         dxdt[3] = theta2_ddot
         return dxdt
+    
+    def calculate_com(self, state):
+    # 状態変数: theta1（リンク1の角度）, theta2（リンク2の角度）
+        theta1 = state[0]
+        theta2 = state[2]
+
+        # リンク1の質量中心の位置
+        x_com1 = self.l1 * np.sin(theta1)
+        y_com1 = self.l1 * np.cos(theta1)
+
+        # リンク2の質量中心の位置
+        x_com2 = self.L1 * np.sin(theta1) + self.l2 * np.sin(theta2)
+        y_com2 = self.L1 * np.cos(theta1) + self.l2 * np.cos(theta2)
+
+        # システム全体の重心位置 (COM)
+        x_com = (self.M1 * x_com1 + self.M2 * x_com2) / (self.M1 + self.M2)
+        y_com = (self.M1 * y_com1 + self.M2 * y_com2) / (self.M1 + self.M2)
+
+        return x_com, y_com
+
+        
+    def calculate_cop(self, vertical_force, ankle_torque):
+        # COPの計算（鉛直反力と足首トルクを基に計算）
+        if vertical_force == 0:
+            # 鉛直力がゼロの場合、COPは計算できないので無効値を返す
+            return float('nan')
+        cop_x = ankle_torque / vertical_force  # x方向のCOPのみを計算
+        return cop_x
+    
+    def calculate_grf(self, state, state_dot):
+        # COMの位置を取得
+        x_com, y_com = self.calculate_com(state)
+
+        # COMの加速度を計算（速度の変化率）
+        y_com_dot = -self.L1 * state_dot[1] * np.sin(state[0]) - self.l2 * state_dot[3] * np.sin(state[2])
+
+        # COMの加速度に基づき地面反力を計算
+        Fy = (self.M1 + self.M2) * (y_com_dot + G)  # 鉛直方向のGRF (重力を含む)
+
+        return Fy

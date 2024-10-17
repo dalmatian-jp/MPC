@@ -64,6 +64,9 @@ class Simulator:
         return quantized_value
 
     def run(self):
+        self.com_history = []  # COMの履歴
+        self.cop_history = []  # COPの履歴
+        
         for ti in self.time:
             if self.use_estimates:
                 current_state = self.observer.get_state_estimate()
@@ -88,6 +91,16 @@ class Simulator:
             self.state = self.normalize_state(self.state)
             self.states.append(self.state)
 
+            # COMとCOPを計算
+            com_x, com_y = self.state_space.dynamics.calculate_com(self.state)
+            self.com_history.append((com_x, com_y))
+            
+            grf= self.state_space.dynamics.calculate_grf(self.state, self.state_dot)
+
+            cop= self.state_space.dynamics.calculate_cop(grf, 0)
+            self.cop_history.append((cop_x, cop_y))
+
+            # 差分履歴
             diff = np.abs(self.state[0] - self.desired_state[0]) + np.abs(
                 self.state[2] - self.desired_state[2]
             )
@@ -134,16 +147,29 @@ class Simulator:
         )
 
     def save_to_csv(self):
-        # シミュレーションの結果をデータフレームにまとめる
+    # シミュレーション結果をデータフレームにまとめる
         data = {
             'time': self.time,
-            'states': [list(state) for state in self.states],
-            'estimated_states': [list(state) for state in self.estimated_states],
-            'observed_states': [list(state) for state in self.observed_states],
-            'control_inputs': [list(u) for u in self.control_inputs],
-            'delayed_inputs': [list(u) for u in self.delayed_inputs],
-            'diff_history': self.diff_history
+            'theta1': [state[0] for state in self.states],  # theta1 (リンク1の角度)
+            'theta1_dot': [state[1] for state in self.states],  # theta1の角速度
+            'theta2': [state[2] for state in self.states],  # theta2 (リンク2の角度)
+            'theta2_dot': [state[3] for state in self.states],  # theta2の角速度
+            'estimated_theta1': [state[0] for state in self.estimated_states],  # 推定されたtheta1
+            'estimated_theta1_dot': [state[1] for state in self.estimated_states],  # 推定されたtheta1_dot
+            'estimated_theta2': [state[2] for state in self.estimated_states],  # 推定されたtheta2
+            'estimated_theta2_dot': [state[3] for state in self.estimated_states],  # 推定されたtheta2_dot
+            'observed_theta1': [state[0] for state in self.observed_states],  # 観測されたtheta1
+            'observed_theta2': [state[2] for state in self.observed_states],  # 観測されたtheta2
+            'control_inputs': [list(u) for u in self.control_inputs],  # 制御入力
+            'delayed_inputs': [list(u) for u in self.delayed_inputs],  # 遅延した制御入力
+            'diff_history': self.diff_history,  # 差分履歴
+            'com_x': [com[0] for com in self.com_history],  # COMのx座標
+            'com_y': [com[1] for com in self.com_history],  # COMのy座標
+            'cop_x': [cop[0] for cop in self.cop_history],  # COPのx座標
+            'cop_y': [cop[1] for cop in self.cop_history],  # COPのy座標
         }
+        
+        # データフレームに変換
         df = pd.DataFrame(data)
         
         # CSVファイルに保存
