@@ -5,58 +5,6 @@ from scipy.optimize import minimize
 
 from controller.base import Controller
 
-
-class MPCController(Controller):
-    def __init__(self, A, B, Q, R, N, dt, horizon_dt):
-        super().__init__(dt)
-        self.A = A
-        self.B = B
-        self.Q = Q
-        self.R = R
-        self.N = N  # Prediction horizon
-        self.dt = dt  # Control period
-        self.horizon_dt = horizon_dt  # Horizon period
-        self.nx = A.shape[0]
-        self.nu = B.shape[1]
-
-        # Discretize system with horizon_dt for prediction
-        self.Ad = np.eye(A.shape[0]) + A * horizon_dt
-        self.Bd = B * horizon_dt
-
-        # Define optimization variables
-        self.cp_U = cp.Variable((self.N, self.nu))
-
-    def predict_state(self, x, u):
-        return self.Ad @ x + self.Bd @ u
-
-    def control(self, state, desired_state, t):
-        if self.last_update_time is None or np.round(t - self.last_update_time, 2) >= self.dt:
-            self.last_update_time = t
-            x0 = state
-            ref = desired_state
-
-            # Define the optimization problem
-            cost = 0
-            constraints = []
-            x = x0
-
-            for i in range(self.N):
-                u = self.cp_U[i, :]
-                x = self.predict_state(x, u)
-                cost += cp.quad_form(x - ref, self.Q) + cp.quad_form(u, self.R)
-
-            # Constraints (example: input constraints)
-            constraints += [self.cp_U <= 100.0, self.cp_U >= -100.0]
-
-            # Solve the optimization problem
-            problem = cp.Problem(cp.Minimize(cost), constraints)
-            problem.solve(solver=cp.OSQP)
-
-            self.u = self.cp_U.value[0, :]
-
-        return self.u
-
-
 class NonlinearMPCControllerCasADi(Controller):
     def __init__(self, dynamics, A, B, Q, R, N, dt, horizon_dt, integration_method="rk4"):
         self.dynamics = dynamics

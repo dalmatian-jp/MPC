@@ -67,6 +67,8 @@ class Simulator:
         self.com_history = []  # COMの履歴
         self.cop_history = []  # COPの履歴
         
+        previous_state = self.state  # 初期状態としての前の状態
+        
         for ti in self.time:
             if self.use_estimates:
                 current_state = self.observer.get_state_estimate()
@@ -81,24 +83,29 @@ class Simulator:
             self.control_inputs.append(u)
             self.delayed_inputs.append(u_delayed)
 
-            self.state = self.runge_kutta_step(
+            # Runge-Kuttaで新しい状態を計算
+            next_state = self.runge_kutta_step(
                 self.state_space.dynamics.update_state,
                 self.state,
                 ti,
                 self.dt,
                 u_delayed,
             )
-            self.state = self.normalize_state(self.state)
+            
+            # state_dotを計算 (時間微分)
+            self.state_dot = (next_state - previous_state) / self.dt
+            previous_state = next_state
+
+            self.state = self.normalize_state(next_state)
             self.states.append(self.state)
 
             # COMとCOPを計算
             com_x, com_y = self.state_space.dynamics.calculate_com(self.state)
             self.com_history.append((com_x, com_y))
             
-            grf= self.state_space.dynamics.calculate_grf(self.state, self.state_dot)
-
+            grf = self.state_space.dynamics.calculate_grf(self.state, self.state_dot)
             cop= self.state_space.dynamics.calculate_cop(grf, 0)
-            self.cop_history.append((cop_x, cop_y))
+            self.cop_history.append((cop))
 
             # 差分履歴
             diff = np.abs(self.state[0] - self.desired_state[0]) + np.abs(
@@ -146,6 +153,7 @@ class Simulator:
             self.success_time,
         )
 
+
     def save_to_csv(self):
     # シミュレーション結果をデータフレームにまとめる
         data = {
@@ -165,8 +173,7 @@ class Simulator:
             'diff_history': self.diff_history,  # 差分履歴
             'com_x': [com[0] for com in self.com_history],  # COMのx座標
             'com_y': [com[1] for com in self.com_history],  # COMのy座標
-            'cop_x': [cop[0] for cop in self.cop_history],  # COPのx座標
-            'cop_y': [cop[1] for cop in self.cop_history],  # COPのy座標
+            'cop': self.cop_history, 
         }
         
         # データフレームに変換

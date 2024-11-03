@@ -67,7 +67,6 @@ def run(initial_state, visualize=True):
     else:
         desired_poles = np.array([-1 + 1j, -1 - 1j, -1.5 + 0.5j, -1.5 - 0.5j])
         L_do = np.eye(4) * 1
-        observer = DisturbanceObserver(state_space.A, state_space.B, state_space.C, L_do)
 
     simulator = Simulator(
         state_space,
