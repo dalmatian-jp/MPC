@@ -22,9 +22,9 @@ def run_roa(theta1, theta2, progress_list, total_trials):
     return (theta1, theta2), processing_time, success_time
 
 def run(initial_state, visualize=True):
-    L0 = 0.28
-    L1 = 0.84
-    L2 = 0.90
+    L0 = 0.158
+    L1 = 0.78
+    L2 = 0.73
     phi0 = np.radians(4)
 
     dt = 0.02
@@ -43,10 +43,10 @@ def run(initial_state, visualize=True):
         L2=L2,
         l1=1.0,
         l2=1.0,
-        M1=1.0,
-        M2=1.0,
-        I1=1.0 / 3,
-        I2=1.0 / 3,
+        M1=11.41,
+        M2=50.14,
+        I1=0.35,
+        I2=0.25,
         c1=0,
         c2=0,
         phi0=phi0,
