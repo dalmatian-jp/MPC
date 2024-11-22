@@ -104,7 +104,8 @@ class Simulator:
             self.com_history.append((com_x, com_y))
             
             grf = self.state_space.dynamics.calculate_grf(self.state, self.state_dot)
-            cop= self.state_space.dynamics.calculate_cop(grf, 0)
+            ut = self.state_space.dynamics.calculate_ut(self.state, self.state_dot)
+            cop= self.state_space.dynamics.calculate_cop(grf, ut)
             self.cop_history.append((cop))
 
             # 差分履歴

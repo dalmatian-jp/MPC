@@ -22,8 +22,10 @@ def run_roa(theta1, theta2, progress_list, total_trials):
     return (theta1, theta2), processing_time, success_time
 
 def run(initial_state, visualize=True):
-    L1 = 2.0
-    L2 = 2.0
+    L0 = 0.28
+    L1 = 0.84
+    L2 = 0.90
+    phi0 = np.radians(4)
 
     dt = 0.02
     dead_time = 0.0
@@ -36,6 +38,7 @@ def run(initial_state, visualize=True):
 
     # 摩擦項は削除されました
     dynamics = DoubleInvertedPendulumDynamics(
+        L0=L0,
         L1=L1,
         L2=L2,
         l1=1.0,
@@ -44,8 +47,9 @@ def run(initial_state, visualize=True):
         M2=1.0,
         I1=1.0 / 3,
         I2=1.0 / 3,
-        c1=0.3,
-        c2=0.3,
+        c1=0,
+        c2=0,
+        phi0=phi0,
         use_linearlized_dynamics=False,
     )
     desired_state = np.radians([0.0, 0.0, 0.0, 0.0])

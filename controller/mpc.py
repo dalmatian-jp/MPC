@@ -121,10 +121,10 @@ class NonlinearMPCControllerCasADi(Controller):
             cost = 0
 
             # トルク制限の上限と下限
-            t_min_a = -100  # 足首のトルクの最小値
-            t_max_a = 100   # 足首のトルクの最大値
-            t_min_h = -150  # 股関節のトルクの最小値
-            t_max_h = 150   # 股関節のトルクの最大値
+            t_min_a = -1000  # 足首のトルクの最小値
+            t_max_a = 1000   # 足首のトルクの最大値
+            t_min_h = -1500  # 股関節のトルクの最小値
+            t_max_h = 1500   # 股関節のトルクの最大値
 
             # コスト関数とシステムの状態更新
             for i in range(self.N):
