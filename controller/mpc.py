@@ -11,6 +11,8 @@ class NonlinearMPCControllerCasADi(Controller):
         self.Q = Q
         self.R = R
         self.N = N  # Prediction horizon
+        self.A = A
+        self.B = B
         self.nx = A.shape[0]
         self.nu = B.shape[1]
         self.integration_method = integration_method
@@ -20,19 +22,13 @@ class NonlinearMPCControllerCasADi(Controller):
         self.last_update_time = None
         self.u = np.zeros(self.nu)
 
-        self.alpha1 = dynamics.alpha1
-        self.alpha2 = dynamics.alpha2
-        self.alpha3 = dynamics.alpha3
-        self.alpha4 = dynamics.alpha4
-        self.alpha5 = dynamics.alpha5
         self.c1 = dynamics.c1
         self.c2 = dynamics.c2
 
         # CasADi symbolic variables
         self.state_sym = ca.MX.sym("state", self.nx)
         self.u_sym = ca.MX.sym("u", self.nu)
-        self.dxdt_sym = self.f(self.state_sym, 0, self.u_sym)
-        self.f_func = ca.Function("f_func", [self.state_sym, self.u_sym], [self.dxdt_sym])
+        self.f_func = self.dynamics.f_func
 
     def predict_state(self, x, u, dt):
         if self.integration_method == "euler":
@@ -62,46 +58,6 @@ class NonlinearMPCControllerCasADi(Controller):
             cost += ca.mtimes([(x - ref).T, self.Q, (x - ref)]) + ca.mtimes([u.T, self.R, u])
         return cost
 
-    def f(self, state, t, u):
-        theta1 = state[0]
-        theta1_dot = state[1]
-        theta2 = state[2]
-        theta2_dot = state[3]
-
-        theta12 = theta1 - theta2
-        cos_theta12 = ca.cos(theta12)
-        sin_theta12 = ca.sin(theta12)
-        denominator = self.alpha1 * self.alpha2 - self.alpha3**2 * cos_theta12**2
-
-        theta1_ddot = (
-            -self.alpha2 * self.alpha3 * sin_theta12 * theta2_dot**2
-            + self.alpha2 * self.alpha4 * ca.sin(theta1)
-            - self.alpha2 * self.c1 * theta1_dot
-            - self.alpha2 * self.c2 * theta1_dot
-            + self.alpha2 * self.c2 * theta2_dot
-            + self.alpha2 * u
-            - self.alpha3**2 * sin_theta12 * cos_theta12 * theta1_dot**2
-            - self.alpha3 * self.alpha5 * ca.sin(theta2) * cos_theta12
-            - self.alpha3 * self.c2 * cos_theta12 * theta1_dot
-            + self.alpha3 * self.c2 * cos_theta12 * theta2_dot
-        ) / denominator
-
-        theta2_ddot = (
-            self.alpha1 * self.alpha3 * sin_theta12 * theta1_dot**2
-            + self.alpha1 * self.alpha5 * ca.sin(theta2)
-            + self.alpha1 * self.c2 * theta1_dot
-            - self.alpha1 * self.c2 * theta2_dot
-            + self.alpha3**2 * sin_theta12 * cos_theta12 * theta2_dot**2
-            - self.alpha3 * self.alpha4 * ca.sin(theta1) * cos_theta12
-            + self.alpha3 * self.c1 * cos_theta12 * theta1_dot
-            + self.alpha3 * self.c2 * cos_theta12 * theta1_dot
-            - self.alpha3 * self.c2 * cos_theta12 * theta2_dot
-            - self.alpha3 * u * cos_theta12
-        ) / denominator
-
-        dxdt = ca.vertcat(theta1_dot, theta1_ddot, theta2_dot, theta2_ddot)
-        return dxdt
-
     def check_condition_number(self, matrix):
         cond_number = np.linalg.cond(matrix)
         if cond_number > 1e10:
@@ -121,10 +77,10 @@ class NonlinearMPCControllerCasADi(Controller):
             cost = 0
 
             # トルク制限の上限と下限
-            t_min_a = -20  # 足首のトルクの最小値
-            t_max_a = 20   # 足首のトルクの最大値
-            t_min_h = -40  # 股関節のトルクの最小値
-            t_max_h = 40   # 股関節のトルクの最大値
+            t_min_a = -20  # 足首トルクの最小値
+            t_max_a = 20   # 足首トルクの最大値
+            t_min_h = -40  # 股関節トルクの最小値
+            t_max_h = 40   # 股関節トルクの最大値
 
             # コスト関数とシステムの状態更新
             for i in range(self.N):
@@ -132,15 +88,11 @@ class NonlinearMPCControllerCasADi(Controller):
                 x = self.predict_state(x, u, self.horizon_dt)
                 cost += ca.mtimes([(x - ref).T, self.Q, (x - ref)]) + ca.mtimes([u.T, self.R, u])
 
-                # 制御入力 u の次元が1次元の場合に対応
-                if self.nu == 1:
-                    opti.subject_to(u[0] >= t_min_a)  # 足首のトルク制約
-                    opti.subject_to(u[0] <= t_max_a)
-                else:
-                    opti.subject_to(u[0] >= t_min_a)  # 足首のトルク制約
-                    opti.subject_to(u[0] <= t_max_a)
-                    opti.subject_to(u[1] >= t_min_h)  # 股関節のトルク制約
-                    opti.subject_to(u[1] <= t_max_h)
+                # 制御入力 u の次元が2次元の場合のトルク制約
+                opti.subject_to(u[0] >= t_min_a)  # 足首のトルク制約
+                opti.subject_to(u[0] <= t_max_a)
+                opti.subject_to(u[1] >= t_min_h)  # 股関節のトルク制約
+                opti.subject_to(u[1] <= t_max_h)
 
             opti.minimize(cost)
 

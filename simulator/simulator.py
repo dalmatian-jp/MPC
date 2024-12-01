@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from numpy.linalg import inv
 
 class Simulator:
     def __init__(
@@ -13,7 +14,6 @@ class Simulator:
         dt=0.01,
         dead_time=0.05,
         add_measurement_noise=False,
-        use_estimates=True,
         use_quantize=False,
         encoder_resolution=72,
     ):
@@ -22,7 +22,6 @@ class Simulator:
         self.observer = observer
         self.initial_state = initial_state
         self.desired_state = desired_state
-        self.use_estimates = use_estimates
         self.dt = dt
         self.dead_time = dead_time
         self.R_obs = np.eye(state_space.C.shape[0]) * 0.001
@@ -38,30 +37,41 @@ class Simulator:
         self.time = np.arange(0, simulation_time, dt)
         self.integral_errors = 0
         self.use_quantize = use_quantize
+        
 
         self.success_time = None
         self.diff_history = []
+
+        # EKFの初期化
+        self.P0 = np.eye(len(initial_state)) * 0.1  # 初期の誤差共分散行列
+        self.observer.initialize(initial_state, self.P0)
 
     def update_and_get_delayed_input(self, t, u):
         self.u_buffer.append((t, u))
 
         if t < self.dead_time:
-            u_delayed = np.array([0])
+            u_delayed = np.zeros_like(u)  # u と同じ次元でゼロを返す
         elif len(self.u_buffer) >= 1:
             u_delayed = self.u_buffer[0][1]
         else:
-            u_delayed = np.array([0])
+            u_delayed = np.zeros_like(u)  # バッファが空でも同じ次元でゼロを返す
 
+        # 古い入力を削除
         while len(self.u_buffer) > 0 and self.u_buffer[0][0] < t - self.dead_time:
             self.u_buffer.pop(0)
 
         return u_delayed
-
-    def quantize(self, value):
-        quantized_value = np.round(value * self.encoder_resolution / (2 * np.pi)) * (
-            2 * np.pi / self.encoder_resolution
-        )
-        return quantized_value
+    
+    def verify_jacobian(self, state, u):
+        """
+        状態遷移のヤコビアンの検証を行うメソッド
+        :param state: 現在の状態ベクトル
+        :param u: 現在の制御入力ベクトル
+        """
+        difference = self.state_space.dynamics.verify_state_transition_jacobian(state, u)
+        max_difference = np.max(difference)
+        if max_difference > 1e-4:
+            print(f"Warning: Large difference detected in Jacobian calculation! Max difference: {max_difference:.6f}")
 
     def run(self):
         self.com_history = []  # COMの履歴
@@ -69,11 +79,10 @@ class Simulator:
         
         previous_state = self.state  # 初期状態としての前の状態
         
-        for ti in self.time:
-            if self.use_estimates:
-                current_state = self.observer.get_state_estimate()
-            else:
-                current_state = self.state
+    
+        for i, ti in enumerate(self.time):
+            # EKFを用いた状態推定を使用
+            current_state = self.observer.get_state_estimate()
 
             u = self.controller.control(current_state, self.desired_state, ti)
             u_clip = np.clip(u, -500, 500)
@@ -105,7 +114,7 @@ class Simulator:
             
             grf = self.state_space.dynamics.calculate_grf(self.state, self.state_dot)
             ut = self.state_space.dynamics.calculate_ut(self.state, self.state_dot)
-            cop= self.state_space.dynamics.calculate_cop(grf, ut)
+            cop = self.state_space.dynamics.calculate_cop(grf, ut)
             self.cop_history.append((cop))
 
             # 差分履歴
@@ -120,7 +129,10 @@ class Simulator:
                 if is_success and self.success_time is None:
                     self.success_time = ti
 
+            # EKFで予測ステップを行う
             self.observer.predict(u_delayed)
+
+            # 観測値を取得し、ノイズを加える場合の処理
             if self.state_space.C.shape[0] == 4:
                 if self.add_measurement_noise:
                     y_k = self.state + np.random.multivariate_normal(
@@ -135,11 +147,16 @@ class Simulator:
                     )
                 else:
                     y_k = self.state[[0, 2]]
-            if self.use_quantize:
-                y_k = self.quantize(y_k)
             self.observed_states.append(y_k)
+
+            # EKFで更新ステップを行う
             self.observer.update(y_k)
             self.estimated_states.append(self.observer.get_state_estimate())
+
+            # 定期的にヤコビアンの検証を行う（例：100回に1回）
+            # if i % 1000 == 0:
+            #     self.verify_jacobian(current_state, u_delayed)
+
 
         # データをCSVに保存
         self.save_to_csv()
@@ -160,15 +177,15 @@ class Simulator:
         data = {
             'time': self.time,
             'theta1': [state[0] for state in self.states],  # theta1 (リンク1の角度)
-            'theta1_dot': [state[1] for state in self.states],  # theta1の角速度
-            'theta2': [state[2] for state in self.states],  # theta2 (リンク2の角度)
+            'theta2': [state[1] for state in self.states],  # theta1の角速度
+            'theta1_dot': [state[2] for state in self.states],  # theta2 (リンク2の角度)
             'theta2_dot': [state[3] for state in self.states],  # theta2の角速度
             'estimated_theta1': [state[0] for state in self.estimated_states],  # 推定されたtheta1
-            'estimated_theta1_dot': [state[1] for state in self.estimated_states],  # 推定されたtheta1_dot
-            'estimated_theta2': [state[2] for state in self.estimated_states],  # 推定されたtheta2
+            'estimated_theta2': [state[1] for state in self.estimated_states],  # 推定されたtheta1_dot
+            'estimated_theta1_dot': [state[2] for state in self.estimated_states],  # 推定されたtheta2
             'estimated_theta2_dot': [state[3] for state in self.estimated_states],  # 推定されたtheta2_dot
             'observed_theta1': [state[0] for state in self.observed_states],  # 観測されたtheta1
-            'observed_theta2': [state[2] for state in self.observed_states],  # 観測されたtheta2
+            'observed_theta2': [state[1] for state in self.observed_states],  # 観測されたtheta2
             'control_inputs': [list(u) for u in self.control_inputs],  # 制御入力
             'delayed_inputs': [list(u) for u in self.delayed_inputs],  # 遅延した制御入力
             'diff_history': self.diff_history,  # 差分履歴
@@ -186,7 +203,7 @@ class Simulator:
 
     def normalize_state(self, state):
         state[0] = (state[0] + np.pi) % (2 * np.pi) - np.pi
-        state[2] = (state[2] + np.pi) % (2 * np.pi) - np.pi
+        state[1] = (state[1] + np.pi) % (2 * np.pi) - np.pi
         return state
 
     def runge_kutta_step(self, func, x, t, dt, u):

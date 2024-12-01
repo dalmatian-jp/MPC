@@ -7,19 +7,9 @@ import numpy as np
 from controller.mpc import NonlinearMPCControllerCasADi
 from dynamics.double_inverted_pendulum import DoubleInvertedPendulumDynamics
 from dynamics.state_space import StateSpace
-from estimator.kalman_filter import KalmanFilter
+from estimator.kalman_filter import ExtendedKalmanFilter
 from simulator.simulator import Simulator
 from visualization.visualization import Visualization, visualize_roa
-
-def run_roa(theta1, theta2, progress_list, total_trials):
-    initial_state = np.array([theta1, 0, theta2, 0])
-    processing_time, success_time = run(initial_state, visualize=False)
-    progress_list.append(1)
-    progress = len(progress_list)
-    print(
-        f"NonlinearMPCCasADi {progress}/{total_trials}, processing_time: {processing_time:.2f}, success_time: {success_time}, theta1: {theta1}, theta2: {theta2}"
-    )
-    return (theta1, theta2), processing_time, success_time
 
 def run(initial_state, visualize=True):
     L0 = 0.158
@@ -27,22 +17,18 @@ def run(initial_state, visualize=True):
     L2 = 0.73
     phi0 = np.radians(4)
 
-    dt = 0.02
-    dead_time = 0.0
+    dt = 0.01
+    dead_time = 0.2
     add_measurement_noise = False
-    use_estimates = False
     use_quantize = False
     encoder_resolution = 144
-
-    controller_dt = 0.02
-
-    # 摩擦項は削除されました
+    controller_dt = 0.01
     dynamics = DoubleInvertedPendulumDynamics(
         L0=L0,
         L1=L1,
         L2=L2,
-        l1=1.0,
-        l2=1.0,
+        l1=L1 / 2,
+        l2=L2 / 2,
         M1=11.41,
         M2=50.14,
         I1=0.35,
@@ -55,22 +41,22 @@ def run(initial_state, visualize=True):
     desired_state = np.radians([0.0, 0.0, 0.0, 0.0])
     state_space = StateSpace(dynamics)
 
-    Q_mpc = np.diag([100, 1, 100, 1])
-    R_mpc = np.diag([0.01])
+    Q_mpc = np.diag([5000,8000,7000,8500])
+    R_mpc = np.diag([0.02,0.01])
     N = 10
-    horizon_dt = 0.1
+    horizon_dt = 0.01
     controller = NonlinearMPCControllerCasADi(
         dynamics, state_space.A, state_space.B, Q_mpc, R_mpc, N, controller_dt, horizon_dt
     )
 
-    use_kalman_filter = True
-    if use_kalman_filter:
-        Q_kf = np.eye(4) * 1
-        R_kf = np.eye(state_space.C.shape[0]) * 0.01
-        observer = KalmanFilter(state_space.A, state_space.B, state_space.C, Q_kf, R_kf)
-    else:
-        desired_poles = np.array([-1 + 1j, -1 - 1j, -1.5 + 0.5j, -1.5 - 0.5j])
-        L_do = np.eye(4) * 1
+    # 状態遷移関数、観測関数、およびヤコビアンを定義
+    f = dynamics.state_transition_function
+    h = dynamics.observation_function
+    F_jacobian = dynamics.state_transition_jacobian
+    H_jacobian = dynamics.observation_jacobian
+    print(f"H_jacobian: {H_jacobian}")
+    # EKFを初期化
+    observer = ExtendedKalmanFilter(f, h, F_jacobian, H_jacobian)
 
     simulator = Simulator(
         state_space,
@@ -82,7 +68,6 @@ def run(initial_state, visualize=True):
         dt=dt,
         dead_time=dead_time,
         add_measurement_noise=add_measurement_noise,
-        use_estimates=use_estimates,
         use_quantize=use_quantize,
         encoder_resolution=encoder_resolution,
     )
@@ -119,7 +104,6 @@ def run(initial_state, visualize=True):
             controller_dt,
             dead_time,
             add_measurement_noise,
-            use_estimates,
             use_quantize,
             encoder_resolution,
             save_dir="videos",
@@ -130,68 +114,8 @@ def run(initial_state, visualize=True):
     return processing_time, success_time
 
 def main():
-    run_once = True
-
-    if run_once:
-        initial_state = np.radians([180, 0, 180, 0])
-        processing_time, success_time = run(initial_state)
-    else:
-        # ROAを求める
-        theta1_range = np.linspace(0, np.pi, 36)
-        theta2_range = np.linspace(0, np.pi, 36)
-        total_trials = len(theta1_range) * len(theta2_range)
-
-        successful_states = []
-        unsuccessful_states = []
-
-        processing_time_list = []
-        success_time_list = []
-
-        manager = mp.Manager()
-        progress_list = manager.list()
-
-        pool = mp.Pool(mp.cpu_count())
-
-        results = []
-        for theta1 in theta1_range:
-            for theta2 in theta2_range:
-                results.append(
-                    pool.apply_async(
-                        run_roa,
-                        (
-                            theta1,
-                            theta2,
-                            progress_list,
-                            total_trials,
-                        ),
-                    )
-                )
-
-        pool.close()
-        pool.join()
-
-        for result in results:
-            (theta1, theta2), processing_time, success_time = result.get()
-            if success_time is not None:
-                successful_states.append((theta1, theta2))
-                success_time_list.append(success_time)
-                processing_time_list.append(processing_time)
-            else:
-                unsuccessful_states.append((theta1, theta2))
-                processing_time_list.append(processing_time)
-
-        visualize_roa(
-            "NonlinearMPCCasADi",
-            total_trials,
-            theta1_range,
-            theta2_range,
-            successful_states,
-            unsuccessful_states,
-            processing_time_list,
-            success_time_list,
-            show_plot=False,
-            save_dir="roa_results_5deg",
-        )
-
+    initial_state = np.array([0.0873, 0, 0, 0]) 
+    run(initial_state)
+   
 if __name__ == "__main__":
     main()

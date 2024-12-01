@@ -28,7 +28,6 @@ class Visualization:
         control_dt,
         dead_time,
         add_measurement_noise,
-        use_estimates,
         use_quantize,
         encoder_resolution,
         save_dir=None,
@@ -52,7 +51,6 @@ class Visualization:
         self.control_dt = control_dt
         self.dead_time = dead_time
         self.add_measurement_noise = add_measurement_noise
-        self.use_estimates = use_estimates
         self.use_quantize = use_quantize
         self.encoder_resolution = encoder_resolution
         self.save_dir = save_dir
@@ -64,7 +62,7 @@ class Visualization:
         Writer = animation.writers["ffmpeg"]
         writer = Writer(fps=15, metadata=dict(artist="Me"), bitrate=1800)
         initial_state = np.round(np.rad2deg(self.initial_state), 1)
-        save_file = f"{self.save_dir}/{self.controller_mode}_θ-{initial_state[0]}_{initial_state[2]}_dt-{self.dt}-{self.control_dt}_dead-{self.dead_time}_f-{self.f1}-{self.f2}_n-{self.add_measurement_noise}_e-{self.use_estimates}_q-{self.use_quantize}-{self.encoder_resolution}.mp4"
+        save_file = f"{self.save_dir}/{self.controller_mode}_θ-{initial_state[0]}_{initial_state[2]}_dt-{self.dt}-{self.control_dt}_dead-{self.dead_time}_f-{self.f1}-{self.f2}_n-{self.add_measurement_noise}_q-{self.use_quantize}-{self.encoder_resolution}.mp4"
         print(f"Animation saving... {save_file}")
         ani.save(f"{save_file}", writer=writer)
         print("Animation saved.")
@@ -107,7 +105,6 @@ class Visualization:
             f"control dt: {self.control_dt}\n"
             f"Dead Time: {self.dead_time}\n"
             f"Measurement Noise: {self.add_measurement_noise}\n"
-            f"Use Estimates: {self.use_estimates}\n"
             f"Use Quantize: {self.use_quantize}\n"
             f"Encoder Resolution: {self.encoder_resolution}"
         )
