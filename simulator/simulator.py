@@ -68,7 +68,7 @@ class Simulator:
         :param state: 現在の状態ベクトル
         :param u: 現在の制御入力ベクトル
         """
-        difference = self.state_space.dynamics.verify_state_transition_jacobian(state, u)
+        difference = self.controller.verify_state_transition_jacobian(state, u)
         max_difference = np.max(difference)
         if max_difference > 1e-4:
             print(f"Warning: Large difference detected in Jacobian calculation! Max difference: {max_difference:.6f}")

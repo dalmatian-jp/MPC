@@ -6,7 +6,7 @@ import casadi as ca
 G = 9.8  # acceleration due to gravity, in m/s^2
 
 class DoubleInvertedPendulumDynamics(Dynamics):
-    def __init__(self,L0, L1, L2, l1, l2, M1, M2, I1, I2, c1, c2,phi0, use_linearlized_dynamics):
+    def __init__(self, state, L0, L1, L2, l1, l2, M1, M2, I1, I2, c1, c2,phi0, use_linearlized_dynamics):
         self.L0 = L0 # リンク0の長さ
         self.L1 = L1 # リンク1の長さ
         self.L2 = L2 # リンク2の長さ
@@ -20,7 +20,10 @@ class DoubleInvertedPendulumDynamics(Dynamics):
         self.c2 = c2 # リンク2の粘性摩擦係数
         self.phi0 = phi0 # リンク0の角度
         self.use_linearlized_dynamics = use_linearlized_dynamics
-        self.create_casadi_dynamics()
+        self.alpha1 = 1/4 * L1**2 * M1 + I1
+        self.alpha2 = 1/4 * L2**2 * M2 + I2
+        self.alpha3 = 1/2 * L1 * L2 * M2 * np.cos(state[1])
+        self.alpha4 = L1**2 * M2
 
 
     def create_state_space(self):
@@ -107,188 +110,49 @@ class DoubleInvertedPendulumDynamics(Dynamics):
     
     def update_state_with_nonlinear_dynamics(self, state, t, u):
         # 非線形な動的モデルを用いた更新
-        I1 = self.I1
-        I2 = self.I2
         L1 = self.L1
         L2 = self.L2
         m1 = self.M1
         m2 = self.M2
         g = G
-        tau_a = u[0]
-        tau_h = u[1]
         theta1, theta2,theta1_dot, theta2_dot = state
         
-        # 分母の定義
-        denominator = (
-            16.0 * I1 * I2 +
-            4.0 * I1 * L2**2 * m2 +
-            4.0 * I2 * L1**2 * m1 +
-            16.0 * I2 * L1**2 * m2 +
-            1.0 * L1**2 * L2**2 * m1 * m2 +
-            4.0 * L1**2 * L2**2 * m2**2 * np.sin(theta2)**2
+        sin_theta1 = np.sin(theta1)
+        sin_theta2 = np.sin(theta2)
+        sin_theta12 = np.sin(theta1 + theta2)
+
+
+        det_M = self.alpha1 * (self.alpha2 + self.alpha4) - self.alpha3**2
+        M_inv = np.array([
+            [(self.alpha2 + self.alpha4) / det_M, -self.alpha3 / det_M],
+            [-self.alpha3 / det_M, self.alpha1 / det_M]
+        ])
+        
+        f_1 = (
+            u[0] + 1/2 * L1 * L2 * m2 * sin_theta2 * theta2_dot ** 2 -
+            L1 * L2 * m2 * sin_theta2 * theta1_dot * theta2_dot +
+            1/2 * g * L2 * m2 * sin_theta12 +
+            1/2 * g * L1 * m1 * sin_theta1 -
+            g * L1 * m2 * sin_theta1
         )
 
-        # 分子の定義 (theta1_ddot)
-        numerator_theta1 = (
-            16.0 * I2 * L1 * L2 * m2 * theta1_dot * theta2_dot * np.sin(theta2) +
-            8.0 * I2 * L1 * L2 * m2 * theta2_dot**2 * np.sin(theta2) +
-            8.0 * I2 * L1 * g * m1 * np.sin(theta1) -
-            16.0 * I2 * L1 * g * m2 * np.sin(theta1) +
-            8.0 * I2 * L1 * theta1_dot**2 * np.sin(theta2) +
-            16.0 * I2 * tau_a -
-            16.0 * I2 * tau_h +
-            2.0 * L1**2 * L2 * m2 * theta1_dot**2 * np.sin(2 * theta2) +
-            4.0 * L1 * L2**3 * m2**2 * theta1_dot * theta2_dot * np.sin(theta2) +
-            2.0 * L1 * L2**3 * m2**2 * theta2_dot**2 * np.sin(theta2) +
-            2.0 * L1 * L2**2 * g * m1 * m2 * np.sin(theta1) -
-            6.0 * L1 * L2**2 * g * m2**2 * np.sin(theta1) -
-            2.0 * L1 * L2**2 * g * m2**2 * np.sin(theta1 + 2 * theta2) +
-            2.0 * L1 * L2**2 * m2 * theta1_dot**2 * np.sin(theta2) -
-            8.0 * L1 * L2 * m2 * tau_h * np.cos(theta2) +
-            4.0 * L2**2 * m2 * tau_a -
-            4.0 * L2**2 * m2 * tau_h
+        f_2 = (
+            u[1] - 1/2 * L1 *theta1_dot ** 2 * sin_theta2 +
+            1/2 * L2 * m2 * g * sin_theta12
         )
 
-        # 分子の定義 (theta2_ddot)
-        numerator_theta2 = (
-            -8.0 * I1 * L1 * theta1_dot**2 * np.sin(theta2) +
-            8.0 * I1 * L2 * g * m2 * np.sin(theta1 + theta2) +
-            16.0 * I1 * tau_h -
-            16.0 * I2 * L1 * L2 * m2 * theta1_dot * theta2_dot * np.sin(theta2) -
-            8.0 * I2 * L1 * L2 * m2 * theta2_dot**2 * np.sin(theta2) -
-            8.0 * I2 * L1 * g * m1 * np.sin(theta1) +
-            16.0 * I2 * L1 * g * m2 * np.sin(theta1) -
-            -8.0 * I2 * L1 * theta1_dot**2 * np.sin(theta2) -
-            16.0 * I2 * tau_a +
-            16.0 * I2 * tau_h -
-            2.0 * L1**3 * m1 * theta1_dot**2 * np.sin(theta2) -
-            8.0 * L1**3 * m2 * theta1_dot**2 * np.sin(theta2) -
-            4.0 * L1**2 * L2**2 * m2**2 * theta1_dot * theta2_dot * np.sin(2 * theta2) -
-            2.0 * L1**2 * L2**2 * m2**2 * theta2_dot**2 * np.sin(2 * theta2) -
-            2.0 * L1**2 * L2 * g * m1 * m2 * np.sin(theta1 - theta2) +
-            4.0 * L1**2 * L2 * g * m2**2 * np.sin(theta1 - theta2) +
-            12.0 * L1**2 * L2 * g * m2**2 * np.sin(theta1 + theta2) -
-            4.0 * L1**2 * L2 * m2 * theta1_dot**2 * np.sin(2 * theta2) +
-            4.0 * L1**2 * m1 * tau_h +
-            16.0 * L1**2 * m2 * tau_h -
-            4.0 * L1 * L2**3 * m2**2 * theta1_dot * theta2_dot * np.sin(theta2) -
-            2.0 * L1 * L2**3 * m2**2 * theta2_dot**2 * np.sin(theta2) -
-            2.0 * L1 * L2**2 * g * m1 * m2 * np.sin(theta1) +
-            6.0 * L1 * L2**2 * g * m2**2 * np.sin(theta1) +
-            2.0 * L1 * L2**2 * g * m2**2 * np.sin(theta1 + 2 * theta2) -
-            2.0 * L1 * L2**2 * m2 * theta1_dot**2 * np.sin(theta2) -
-            8.0 * L1 * L2 * m2 * tau_a * np.cos(theta2) +
-            16.0 * L1 * L2 * m2 * tau_h * np.cos(theta2) -
-            4.0 * L2**2 * m2 * tau_a +
-            4.0 * L2**2 * m2 * tau_h
-        )
-
-        # theta1_ddot の定義
-        theta1_ddot = numerator_theta1 / denominator
-        # theta2_ddot の定義
-        theta2_ddot = numerator_theta2 / denominator
+        f = np.array([
+            f_1,
+            f_2
+        ])
+        ddot_theta = M_inv @ f
 
         dxdt = np.zeros_like(state)
         dxdt[0] = theta1_dot
         dxdt[1] = theta2_dot
-        dxdt[2] = theta1_ddot
-        dxdt[3] = theta2_ddot
+        dxdt[2:] = ddot_theta  # theta1_ddot, theta2_ddot を一度に更新
+
         return dxdt
-
-    def create_casadi_dynamics(self):
-        """
-        CasADi形式での非線形動的モデル (f(x, u)) の構築
-        """
-        # CasADiシンボリック変数の定義
-        theta1 = ca.MX.sym('theta1')
-        theta2 = ca.MX.sym('theta2')
-        theta1_dot = ca.MX.sym('theta1_dot')
-        theta2_dot = ca.MX.sym('theta2_dot')
-        tau_a = ca.MX.sym('tau_a')
-        tau_h = ca.MX.sym('tau_h')
-        state = ca.vertcat(theta1, theta2, theta1_dot, theta2_dot)
-        u = ca.vertcat(tau_a, tau_h)
-
-        # モデルパラメータ
-        I1, I2 = self.I1, self.I2
-        L1, L2 = self.L1, self.L2
-        m1, m2 = self.M1, self.M2
-        g = G
-
-        # 分母
-        denominator = (
-            16.0 * I1 * I2 +
-            4.0 * I1 * L2**2 * m2 +
-            4.0 * I2 * L1**2 * m1 +
-            16.0 * I2 * L1**2 * m2 +
-            1.0 * L1**2 * L2**2 * m1 * m2 +
-            4.0 * L1**2 * L2**2 * m2**2 * ca.sin(theta2)**2
-        )
-
-        # 分子 (theta1_ddot)
-        numerator_theta1 = (
-            16.0 * I2 * L1 * L2 * m2 * theta1_dot * theta2_dot * ca.sin(theta2) +
-            8.0 * I2 * L1 * L2 * m2 * theta2_dot**2 * ca.sin(theta2) +
-            8.0 * I2 * L1 * g * m1 * ca.sin(theta1) -
-            16.0 * I2 * L1 * g * m2 * ca.sin(theta1) +
-            8.0 * I2 * L1 * theta1_dot**2 * ca.sin(theta2) +
-            16.0 * I2 * tau_a -
-            16.0 * I2 * tau_h +
-            2.0 * L1**2 * L2 * m2 * theta1_dot**2 * ca.sin(2 * theta2) +
-            4.0 * L1 * L2**3 * m2**2 * theta1_dot * theta2_dot * ca.sin(theta2) +
-            2.0 * L1 * L2**3 * m2**2 * theta2_dot**2 * ca.sin(theta2) +
-            2.0 * L1 * L2**2 * g * m1 * m2 * ca.sin(theta1) -
-            6.0 * L1 * L2**2 * g * m2**2 * ca.sin(theta1) -
-            2.0 * L1 * L2**2 * g * m2**2 * ca.sin(theta1 + 2 * theta2) +
-            2.0 * L1 * L2**2 * m2 * theta1_dot**2 * ca.sin(theta2) -
-            8.0 * L1 * L2 * m2 * tau_h * ca.cos(theta2) +
-            4.0 * L2**2 * m2 * tau_a -
-            4.0 * L2**2 * m2 * tau_h
-        )
-
-        # 分子 (theta2_ddot)
-        numerator_theta2 = (
-            -8.0 * I1 * L1 * theta1_dot**2 * ca.sin(theta2) +
-            8.0 * I1 * L2 * g * m2 * ca.sin(theta1 + theta2) +
-            16.0 * I1 * tau_h -
-            16.0 * I2 * L1 * L2 * m2 * theta1_dot * theta2_dot * ca.sin(theta2) -
-            8.0 * I2 * L1 * L2 * m2 * theta2_dot**2 * ca.sin(theta2) -
-            8.0 * I2 * L1 * g * m1 * ca.sin(theta1) +
-            16.0 * I2 * L1 * g * m2 * ca.sin(theta1) -
-            -8.0 * I2 * L1 * theta1_dot**2 * ca.sin(theta2) -
-            16.0 * I2 * tau_a +
-            16.0 * I2 * tau_h -
-            2.0 * L1**3 * m1 * theta1_dot**2 * ca.sin(theta2) -
-            8.0 * L1**3 * m2 * theta1_dot**2 * ca.sin(theta2) -
-            4.0 * L1**2 * L2**2 * m2**2 * theta1_dot * theta2_dot * ca.sin(2 * theta2) -
-            2.0 * L1**2 * L2**2 * m2**2 * theta2_dot**2 * ca.sin(2 * theta2) -
-            2.0 * L1**2 * L2 * g * m1 * m2 * ca.sin(theta1 - theta2) +
-            4.0 * L1**2 * L2 * g * m2**2 * ca.sin(theta1 - theta2) +
-            12.0 * L1**2 * L2 * g * m2**2 * ca.sin(theta1 + theta2) -
-            4.0 * L1**2 * L2 * m2 * theta1_dot**2 * ca.sin(2 * theta2) +
-            4.0 * L1**2 * m1 * tau_h +
-            16.0 * L1**2 * m2 * tau_h -
-            4.0 * L1 * L2**3 * m2**2 * theta1_dot * theta2_dot * ca.sin(theta2) -
-            2.0 * L1 * L2**3 * m2**2 * theta2_dot**2 * ca.sin(theta2) -
-            2.0 * L1 * L2**2 * g * m1 * m2 * ca.sin(theta1) +
-            6.0 * L1 * L2**2 * g * m2**2 * ca.sin(theta1) +
-            2.0 * L1 * L2**2 * g * m2**2 * ca.sin(theta1 + 2 * theta2) -
-            2.0 * L1 * L2**2 * m2 * theta1_dot**2 * ca.sin(theta2) -
-            8.0 * L1 * L2 * m2 * tau_a * ca.cos(theta2) +
-            16.0 * L1 * L2 * m2 * tau_h * ca.cos(theta2) -
-            4.0 * L2**2 * m2 * tau_a +
-            4.0 * L2**2 * m2 * tau_h
-        )
-
-        # ddot の計算
-        theta1_ddot = numerator_theta1 / denominator
-        theta2_ddot = numerator_theta2 / denominator
-
-        dxdt = ca.vertcat(theta1_dot, theta2_dot, theta1_ddot, theta2_ddot)
-
-        # CasADi関数として登録
-        self.f_func = ca.Function('f_func', [state, u], [dxdt])
-
 
     def calculate_com(self, state):
     # 状態変数: theta1（リンク1の角度）, theta2（リンク2の角度）
@@ -308,8 +172,7 @@ class DoubleInvertedPendulumDynamics(Dynamics):
         y_com = (self.M1 * y_com1 + self.M2 * y_com2) / (self.M1 + self.M2)
 
         return x_com, y_com
-
-        
+       
     def calculate_cop(self, vertical_force, ankle_torque):
         # COPの計算（鉛直反力と足首トルクを基に計算）
         if vertical_force == 0:
@@ -387,127 +250,17 @@ class DoubleInvertedPendulumDynamics(Dynamics):
 
         return u_t
 
-    # 状態遷移関数 (f)
+
+ # 状態遷移関数 (f)
     def state_transition_function(self, state, u):
         return self.update_state_with_nonlinear_dynamics(state, 0, u)
-
+   
     # 観測関数 (h)
     def observation_function(self, state):
         return state  # 観測関数としては直接的に状態を返す
-
-    # 状態遷移関数のヤコビアン (F_jacobian)
-    def state_transition_jacobian(self, state, u):
-        """
-        数値計算による状態遷移ヤコビアンの計算
-        :param state: 状態ベクトル [theta1, theta2, theta1_dot, theta2_dot]
-        :param u: 入力ベクトル [tau_a, tau_h]
-        :return: ヤコビアン行列 (4x4)
-        """
-        # モデルパラメータ
-        m1 = self.M1
-        m2 = self.M2
-        L1 = self.L1
-        L2 = self.L2
-        I1 = self.I1
-        I2 = self.I2
-        g = G
-        # 共通の分母
-        denominator = (
-            16 * I1 * I2 + 4 * I1 * L2**2 * m2 + 4 * I2 * L1**2 * m1 +
-            16 * I2 * L1**2 * m2 + L1**2 * L2**2 * m1 * m2
-        )
-
-        # 行列の各要素を定義
-        A = np.zeros((4, 4))
-
-        A[0, 2] = 1
-        A[1, 3] = 1
-
-        A[3, 0] = (
-            g * (8.0 * I1 * L2 * m2 - 8.0 * I2 * L1 * m1 + 16.0 * I2 * L1 * m2 - 
-                2.0 * L1**2 * L2 * m1 * m2 + 16.0 * L1**2 * L2 * m2**2 - 
-                2.0 * L1 * L2**2 * m1 * m2 + 8.0 * L1 * L2**2 * m2**2) /
-            denominator
-        )
-
-        A[3, 1] = (
-            L2 * g * m2 * (8.0 * I1 + 2.0 * L1**2 * m1 + 8.0 * L1**2 * m2 + 4.0 * L1 * L2 * m2) /
-            denominator
-        )
-
-        A[3, 2] = 0
-        A[3, 3] = 0
-
-        A[2, 0] = (
-            L1 * g * (8.0 * I2 * m1 - 16.0 * I2 * m2 + 2.0 * L2**2 * m1 * m2 - 
-                    8.0 * L2**2 * m2**2) /
-            denominator
-        )
-
-        A[2, 1] = -(
-            4.0 * L1 * L2**2 * g * m2**2 /
-            denominator
-        )
-
-        A[2, 2] = 0
-        A[2, 3] = 0
-
-        return A
-
-
 
     # 観測関数のヤコビアン (H_jacobian)
     def observation_jacobian(self, state):
         # 観測関数としては直接的に状態を返すので、単位行列を返す
         return np.eye(4)
     
-    # 数値微分によるヤコビアンの計算
-    def numerical_jacobian(self, f, x, u, delta=1e-5):
-        """
-        数値微分によりヤコビアンを計算する関数
-        :param f: 関数
-        :param x: 入力ベクトル
-        :param u: 制御入力ベクトル
-        :param delta: 数値微分のための微小変化量
-        :return: 数値微分によるヤコビアン
-        """
-        n = len(x)
-        m = len(u)
-        F = np.zeros((n, n))
-        for i in range(n):
-            x_plus = x.copy()
-            x_minus = x.copy()
-            x_plus[i] += delta
-            x_minus[i] -= delta
-            F[:, i] = (f(x_plus, u) - f(x_minus, u)) / (2 * delta)
-        return F
-    
-    def verify_state_transition_jacobian(self, state, u, delta=1e-5):
-            """
-            状態遷移ヤコビアンを数値的に計算した結果と比較するための関数
-            :param state: 状態ベクトル
-            :param u: 制御入力ベクトル
-            :param delta: 数値微分のための微小変化量
-            :return: 数値ヤコビアンと解析ヤコビアンの差
-            """
-            # 状態遷移関数をラップする
-            f = lambda x, u: self.update_state_with_nonlinear_dynamics(x, 0, u)
-            
-            # 数値ヤコビアンの計算
-            F_numerical = self.numerical_jacobian(f, state, u, delta)
-            
-            # 解析的に計算されたヤコビアンの取得
-            F_analytical = self.state_transition_jacobian(state, u)
-            
-            # 数値ヤコビアンと解析ヤコビアンの違いを出力
-            print("Numerical Jacobian:")
-            print(F_numerical)
-            print("\nAnalytical Jacobian:")
-            print(F_analytical)
-            
-            difference = np.abs(F_numerical - F_analytical)
-            print("\nDifference:")
-            print(difference)
-            
-            return difference
-

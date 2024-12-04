@@ -24,6 +24,7 @@ def run(initial_state, visualize=True):
     encoder_resolution = 144
     controller_dt = 0.01
     dynamics = DoubleInvertedPendulumDynamics(
+        initial_state,
         L0=L0,
         L1=L1,
         L2=L2,
@@ -52,9 +53,9 @@ def run(initial_state, visualize=True):
     # 状態遷移関数、観測関数、およびヤコビアンを定義
     f = dynamics.state_transition_function
     h = dynamics.observation_function
-    F_jacobian = dynamics.state_transition_jacobian
+    F_jacobian = controller.state_transition_jacobian
     H_jacobian = dynamics.observation_jacobian
-    print(f"H_jacobian: {H_jacobian}")
+
     # EKFを初期化
     observer = ExtendedKalmanFilter(f, h, F_jacobian, H_jacobian)
 
