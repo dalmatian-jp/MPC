@@ -47,11 +47,11 @@ def run(initial_state, visualize=True):
     N = 10
     horizon_dt = 0.01
     controller = NonlinearMPCControllerCasADi(
-        dynamics, state_space.A, state_space.B, Q_mpc, R_mpc, N, controller_dt, horizon_dt
+        dynamics, Q_mpc, R_mpc, N, controller_dt, horizon_dt
     )
 
     # 状態遷移関数、観測関数、およびヤコビアンを定義
-    f = dynamics.state_transition_function
+    f = controller.create_numeric_f
     h = dynamics.observation_function
     F_jacobian = controller.state_transition_jacobian
     H_jacobian = dynamics.observation_jacobian
@@ -116,6 +116,7 @@ def run(initial_state, visualize=True):
 
 def main():
     initial_state = np.array([0.0873, 0, 0, 0]) 
+    # initial_state = np.array([0.2618, 0, 0, 0]) 
     run(initial_state)
    
 if __name__ == "__main__":

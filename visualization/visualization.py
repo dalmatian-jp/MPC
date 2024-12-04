@@ -62,7 +62,7 @@ class Visualization:
         Writer = animation.writers["ffmpeg"]
         writer = Writer(fps=15, metadata=dict(artist="Me"), bitrate=1800)
         initial_state = np.round(np.rad2deg(self.initial_state), 1)
-        save_file = f"{self.save_dir}/{self.controller_mode}_θ-{initial_state[0]}_{initial_state[2]}_dt-{self.dt}-{self.control_dt}_dead-{self.dead_time}_f-{self.f1}-{self.f2}_n-{self.add_measurement_noise}_q-{self.use_quantize}-{self.encoder_resolution}.mp4"
+        save_file = f"{self.save_dir}/{self.controller_mode}_θ-{initial_state[0]}_{initial_state[1]}_dt-{self.dt}-{self.control_dt}_dead-{self.dead_time}_f-{self.f1}-{self.f2}_n-{self.add_measurement_noise}_q-{self.use_quantize}-{self.encoder_resolution}.mp4"
         print(f"Animation saving... {save_file}")
         ani.save(f"{save_file}", writer=writer)
         print("Animation saved.")
@@ -182,10 +182,10 @@ class Visualization:
                 label="Observed θ2",
                 linestyle="--",
             )
-        ax4.plot(self.time, self.states[:, 2], c="cornflowerblue", label="True θ2")
+        ax4.plot(self.time, self.states[:, 1], c="cornflowerblue", label="True θ2")
         ax4.plot(
             self.time,
-            self.estimated_states[:, 2],
+            self.estimated_states[:, 1],
             c="orange",
             label="Estimated θ2",
             linestyle="--",
@@ -231,13 +231,13 @@ class Visualization:
         def update(i):
             x1 = self.L1 * np.sin(self.states[i, 0])
             y1 = self.L1 * np.cos(self.states[i, 0])
-            x2 = x1 + self.L2 * np.sin(self.states[i, 2])
-            y2 = y1 + self.L2 * np.cos(self.states[i, 2])
+            x2 = x1 + self.L2 * np.sin(self.states[i, 1])
+            y2 = y1 + self.L2 * np.cos(self.states[i, 1])
 
             x1_est = self.L1 *np.sin(self.estimated_states[i, 0])
             y1_est = self.L1 * np.cos(self.estimated_states[i, 0])
-            x2_est = x1_est + self.L2 * np.sin(self.estimated_states[i, 2])
-            y2_est = y1_est + self.L2 * np.cos(self.estimated_states[i, 2])
+            x2_est = x1_est + self.L2 * np.sin(self.estimated_states[i, 1])
+            y2_est = y1_est + self.L2 * np.cos(self.estimated_states[i, 1])
 
             line.set_data([0, x1, x2], [0, y1, y2])
             line_est.set_data([0, x1_est, x2_est], [0, y1_est, y2_est])
@@ -252,7 +252,7 @@ class Visualization:
             )
             theta2_time_bar.set_xdata([self.time[i]])
             theta2_text.set_text(
-                f"θ2 = {np.round(self.states[i, 2], 2)},\nθ2_est = {np.round(self.estimated_states[i, 2], 2)}"
+                f"θ2 = {np.round(self.states[i, 1], 2)},\nθ2_est = {np.round(self.estimated_states[i, 1], 2)}"
             )
             return (
                 line,

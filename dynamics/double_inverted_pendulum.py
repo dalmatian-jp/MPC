@@ -27,80 +27,8 @@ class DoubleInvertedPendulumDynamics(Dynamics):
 
 
     def create_state_space(self):
-        # モデルパラメータ
-        m1 = self.M1
-        m2 = self.M2
-        L1 = self.L1
-        L2 = self.L2
-        I1 = self.I1
-        I2 = self.I2
-        g = G
-
-        # 共通の分母
-        denominator = (
-            16.0 * I1 * I2 + 4.0 * I1 * L2**2 * m2 + 4.0 * I2 * L1**2 * m1 +
-            16.0 * I2 * L1**2 * m2 + L1**2 * L2**2 * m1 * m2
-        )
-
-        # 行列の各要素を計算
         A = np.zeros((4, 4))
-
-        # 固定値の要素
-        A[0, 2] = 1
-        A[1, 3] = 1
-
-        # A[2, 0]
-        A[2, 0] = (
-            g * (
-                8.0 * I1 * L2 * m2 - 8.0 * I2 * L1 * m1 +
-                16.0 * I2 * L1 * m2 - 2.0 * L1**2 * L2 * m1 * m2 +
-                16.0 * L1**2 * L2 * m2**2 - 2.0 * L1 * L2**2 * m1 * m2 +
-                8.0 * L1 * L2**2 * m2**2
-            )
-        ) / denominator
-
-        # A[2, 1]
-        A[2, 1] = (
-            L2 * g * m2 * (
-                8.0 * I1 + 2.0 * L1**2 * m1 +
-                8.0 * L1**2 * m2 + 4.0 * L1 * L2 * m2
-            )
-        ) / denominator
-
-        # A[3, 0]
-        A[3, 0] = (
-            L1 * g * (
-                8.0 * I2 * m1 - 16.0 * I2 * m2 +
-                2.0 * L2**2 * m1 * m2 - 8.0 * L2**2 * m2**2
-            )
-        ) / denominator
-
-        # A[3, 1]
-        A[3, 1] = -(
-            4.0 * L1 * L2**2 * g * m2**2
-        ) / denominator
-
-
         B = np.zeros((4, 2))
-
-        B[2, 0] = (
-            -16.0 * I2 - 8.0 * L1 * L2 * m2 - 4.0 * L2**2 * m2
-        ) / denominator
-
-        B[2, 1] = (
-            16.0 * I1 + 16.0 * I2 + 4.0 * L1**2 * m1 +
-            16.0 * L1**2 * m2 + 16.0 * L1 * L2 * m2 +
-            4.0 * L2**2 * m2
-        ) / denominator
-
-        B[3, 0] = (
-            16.0 * I2 + 4.0 * L2**2 * m2
-        ) / denominator
-
-        B[3, 1] = (
-            -16.0 * I2 - 8.0 * L1 * L2 * m2 - 4.0 * L2**2 * m2
-        ) / denominator
-        
         C = np.eye(4)
         D = np.zeros((4, 2))
         return A, B, C, D
@@ -122,10 +50,10 @@ class DoubleInvertedPendulumDynamics(Dynamics):
         sin_theta12 = np.sin(theta1 + theta2)
 
 
-        det_M = self.alpha1 * (self.alpha2 + self.alpha4) - self.alpha3**2
+        det_M = self.alpha2 * (self.alpha1 + self.alpha4) - self.alpha3**2
         M_inv = np.array([
-            [(self.alpha2 + self.alpha4) / det_M, -self.alpha3 / det_M],
-            [-self.alpha3 / det_M, self.alpha1 / det_M]
+            [ self.alpha2 / det_M, -(self.alpha2 + self.alpha3) / det_M],
+            [-(self.alpha2 + self.alpha3) / det_M, (self.alpha1 + self.alpha2 + 2 * self.alpha3 + self.alpha4) / det_M]
         ])
         
         f_1 = (

@@ -154,8 +154,8 @@ class Simulator:
             self.estimated_states.append(self.observer.get_state_estimate())
 
             # 定期的にヤコビアンの検証を行う（例：100回に1回）
-            # if i % 1000 == 0:
-            #     self.verify_jacobian(current_state, u_delayed)
+            if i % 100 == 0:
+                self.verify_jacobian(current_state, u_delayed)
 
 
         # データをCSVに保存
