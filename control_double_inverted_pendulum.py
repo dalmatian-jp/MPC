@@ -44,7 +44,7 @@ def run(initial_state, visualize=True):
 
     Q_mpc = np.diag([5000,8000,7000,8500])
     R_mpc = np.diag([0.02,0.01])
-    N = 4
+    N = 2
     horizon_dt = 0.01
     controller = NonlinearMPCControllerCasADi(
         dynamics, Q_mpc, R_mpc, N, controller_dt, horizon_dt

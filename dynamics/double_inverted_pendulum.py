@@ -178,16 +178,12 @@ class DoubleInvertedPendulumDynamics(Dynamics):
 
         return u_t
 
-
- # 状態遷移関数 (f)
     def state_transition_function(self, state, u):
         return self.update_state_with_nonlinear_dynamics(state, 0, u)
    
-    # 観測関数 (h)
     def observation_function(self, state):
         return state  # 観測関数としては直接的に状態を返す
 
-    # 観測関数のヤコビアン (H_jacobian)
     def observation_jacobian(self, state):
         # 観測関数としては直接的に状態を返すので、単位行列を返す
         return np.eye(4)

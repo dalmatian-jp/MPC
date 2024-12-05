@@ -30,7 +30,6 @@ class ExtendedKalmanFilter:
         Kf = self.P @ H.T @ inv(S)
         self.state_estimate += Kf @ (y - self.h(self.state_estimate))
         self.P = (np.eye(len(self.P)) - Kf @ H) @ self.P
-
+        
     def get_state_estimate(self):
         return self.state_estimate
-

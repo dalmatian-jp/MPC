@@ -64,11 +64,6 @@ class Simulator:
         return np.zeros_like(u_delayed) #入力なしの挙動を確認
     
     def verify_jacobian(self, state, u):
-        """
-        状態遷移のヤコビアンの検証を行うメソッド
-        :param state: 現在の状態ベクトル
-        :param u: 現在の制御入力ベクトル
-        """
         difference = self.controller.verify_state_transition_jacobian(state, u)
         max_difference = np.max(difference)
         if max_difference > 1e-4:

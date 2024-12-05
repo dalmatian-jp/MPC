@@ -1,7 +1,5 @@
 import casadi as ca
-import cvxpy as cp
 import numpy as np
-from scipy.optimize import minimize
 
 from controller.base import Controller
 
@@ -179,7 +177,6 @@ class NonlinearMPCControllerCasADi(Controller):
         dxdt = np.array([theta1_dot, theta2_dot, ddot_theta[0], ddot_theta[1]])
 
         return dxdt
-
 
     def state_transition_jacobian(self, state, u):
         """
