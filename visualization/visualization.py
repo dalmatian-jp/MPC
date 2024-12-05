@@ -127,17 +127,6 @@ class Visualization:
             linestyle="--",
         )
 
-        # 摩擦補償のプロットは不要になったので削除
-        # if len(self.friction_compensations) > 0:
-        #     ax2.plot(
-        #         self.time,
-        #         self.friction_compensations,
-        #         label="Friction compensation",
-        #         c="brown",
-        #         linestyle="--",
-        #         linewidth=1,
-        #     )
-
         ax2.set_xlabel("Time (s)")
         ax2.set_ylabel("Input")
         ax2.legend()
@@ -282,85 +271,13 @@ class Visualization:
         plt.show()
 
 
-def visualize_roa(
-    controller_mode,
-    total_trials,
-    theta1_range,
-    theta2_range,
-    successful_states,
-    unsuccessful_states,
-    processing_time_list,
-    success_time_list,
-    show_plot,
-    save_dir,
-):
-    successful_states = np.array(successful_states)
-    unsuccessful_states = np.array(unsuccessful_states)
-    average_processing_time = np.mean(processing_time_list)
-    average_success_time = np.mean(success_time_list)
-    plt.figure(figsize=(10, 8))
-    if len(successful_states) > 0:
-        plt.scatter(
-            np.degrees(successful_states[:, 0]),
-            np.degrees(successful_states[:, 1]),
-            color="green",
-            label="Successful",
-        )
-        if len(successful_states) > 2 and len(np.unique(successful_states[:, 0])) > 1:
-            hull = ConvexHull(successful_states)
-            for simplex in hull.simplices:
-                plt.plot(
-                    np.degrees(successful_states[simplex, 0]),
-                    np.degrees(successful_states[simplex, 1]),
-                    "k-",
-                )
-    if len(unsuccessful_states) > 0:
-        plt.scatter(
-            np.degrees(unsuccessful_states[:, 0]),
-            np.degrees(unsuccessful_states[:, 1]),
-            color="red",
-            label="Unsuccessful",
-        )
-    plt.xlabel("Theta1 (degrees)")
-    plt.ylabel("Theta2 (degrees)")
-    plt.legend()
-    plt.title(f"ROA for {controller_mode} controller")
-    plt.text(
-        0.02,
-        0.95,
-        f"Average proccesing time: {average_processing_time:.2f} seconds\nAverage success time: {average_success_time}",
-        transform=plt.gca().transAxes,
-        verticalalignment="top",
-        bbox=dict(facecolor="white", alpha=0.7),
-    )
-    ROA = str(len(successful_states)) + "/" + str(total_trials)
-    plt.text(
-        0.02,
-        0.85,
-        f"ROA: {ROA}",
-        transform=plt.gca().transAxes,
-        verticalalignment="top",
-        bbox=dict(facecolor="white", alpha=0.7),
-    )
-    plt.grid(True)
-    plt.xlim([0, np.degrees(theta1_range[-1])])
-    plt.ylim([0, np.degrees(theta2_range[-1])])
-    if show_plot:
-        plt.show()
-    if save_dir:
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-        plt.savefig(f"{save_dir}/ROA_{controller_mode}.png")
-    print(f"ROA for {controller_mode} controller: {ROA}")
-
-
-def visualize_poles(poles):
-    plt.figure()
-    plt.scatter(np.real(poles), np.imag(poles), marker="x", label="Poles")
-    plt.axhline(0, color="black", lw=0.5)
-    plt.axvline(0, color="black", lw=0.5)
-    plt.title("Pole-Zero Map")
-    plt.xlabel("Real")
-    plt.ylabel("Imaginary")
-    plt.grid()
-    plt.show()
+# def visualize_poles(poles):
+#     plt.figure()
+#     plt.scatter(np.real(poles), np.imag(poles), marker="x", label="Poles")
+#     plt.axhline(0, color="black", lw=0.5)
+#     plt.axvline(0, color="black", lw=0.5)
+#     plt.title("Pole-Zero Map")
+#     plt.xlabel("Real")
+#     plt.ylabel("Imaginary")
+#     plt.grid()
+#     plt.show()

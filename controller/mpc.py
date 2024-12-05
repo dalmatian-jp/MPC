@@ -123,7 +123,7 @@ class NonlinearMPCControllerCasADi(Controller):
 
         return dxdt
     
-    def create_numeric_f(self, state, t, u):
+    def create_numeric_f(self, state, u):
         # パラメータの取得
         L1 = self.dynamics.L1
         L2 = self.dynamics.L2
@@ -231,7 +231,7 @@ class NonlinearMPCControllerCasADi(Controller):
             :return: 数値ヤコビアンと解析ヤコビアンの差
             """
             # 状態遷移関数をラップする
-            f = lambda x, u: self.create_numeric_f(x, 0, u)
+            f = lambda x, u: self.create_numeric_f(x, u)
          
             # 数値ヤコビアンの計算
             F_numerical = self.numerical_jacobian(f, state, u, delta)
@@ -270,6 +270,11 @@ class NonlinearMPCControllerCasADi(Controller):
             t_min_h = -40  # 股関節トルクの最小値
             t_max_h = 40   # 股関節トルクの最大値
 
+            theta1_min = -0.35
+            theta1_max = 0.53
+            theta2_min = -0.53
+            theta2_max = 0.87
+
             # コスト関数とシステムの状態更新
             for i in range(self.N):
                 u = U[i * self.nu : (i + 1) * self.nu]
@@ -281,6 +286,10 @@ class NonlinearMPCControllerCasADi(Controller):
                 opti.subject_to(u[0] <= t_max_a)
                 opti.subject_to(u[1] >= t_min_h)  # 股関節のトルク制約
                 opti.subject_to(u[1] <= t_max_h)
+                opti.subject_to(x[0] >= theta1_min)  # リンク1の角度制約
+                opti.subject_to(x[0] <= theta1_max)
+                opti.subject_to(x[1] >= theta2_min)  # リンク2の角度制約
+                opti.subject_to(x[1] <= theta2_max)
 
             opti.minimize(cost)
 

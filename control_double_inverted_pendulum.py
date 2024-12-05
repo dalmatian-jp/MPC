@@ -9,7 +9,7 @@ from dynamics.double_inverted_pendulum import DoubleInvertedPendulumDynamics
 from dynamics.state_space import StateSpace
 from estimator.kalman_filter import ExtendedKalmanFilter
 from simulator.simulator import Simulator
-from visualization.visualization import Visualization, visualize_roa
+from visualization.visualization import Visualization
 
 def run(initial_state, visualize=True):
     L0 = 0.158
@@ -18,7 +18,7 @@ def run(initial_state, visualize=True):
     phi0 = np.radians(4)
 
     dt = 0.01
-    dead_time = 0.2
+    dead_time = 0.0
     add_measurement_noise = False
     use_quantize = False
     encoder_resolution = 144
@@ -44,7 +44,7 @@ def run(initial_state, visualize=True):
 
     Q_mpc = np.diag([5000,8000,7000,8500])
     R_mpc = np.diag([0.02,0.01])
-    N = 10
+    N = 4
     horizon_dt = 0.01
     controller = NonlinearMPCControllerCasADi(
         dynamics, Q_mpc, R_mpc, N, controller_dt, horizon_dt
@@ -53,7 +53,7 @@ def run(initial_state, visualize=True):
     # 状態遷移関数、観測関数、およびヤコビアンを定義
     f = controller.create_numeric_f
     h = dynamics.observation_function
-    F_jacobian = controller.state_transition_jacobian
+    F_jacobian = controller.numerical_jacobian
     H_jacobian = dynamics.observation_jacobian
 
     # EKFを初期化

@@ -20,8 +20,8 @@ class ExtendedKalmanFilter:
         self.P = P0
 
     def predict(self, u):
-        F = self.F_jacobian(self.state_estimate, u)
-        self.state_estimate = self.f(self.state_estimate, 0,u)
+        F = self.F_jacobian(self.f, self.state_estimate, u)
+        self.state_estimate = self.f(self.state_estimate,u)
         self.P = F @ self.P @ F.T + self.Q
 
     def update(self, y):

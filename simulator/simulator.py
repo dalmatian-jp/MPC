@@ -60,7 +60,8 @@ class Simulator:
         while len(self.u_buffer) > 0 and self.u_buffer[0][0] < t - self.dead_time:
             self.u_buffer.pop(0)
 
-        return u_delayed
+        # return u_delayed
+        return np.zeros_like(u_delayed) #入力なしの挙動を確認
     
     def verify_jacobian(self, state, u):
         """
@@ -78,13 +79,13 @@ class Simulator:
         self.cop_history = []  # COPの履歴
         
         previous_state = self.state  # 初期状態としての前の状態
-        
     
         for i, ti in enumerate(self.time):
             # EKFを用いた状態推定を使用
             current_state = self.observer.get_state_estimate()
 
             u = self.controller.control(current_state, self.desired_state, ti)
+            u = [0,0]
             u_clip = np.clip(u, -500, 500)
             u_delayed = (
                 self.update_and_get_delayed_input(ti, u_clip) if self.dead_time > 0.0 else u_clip
