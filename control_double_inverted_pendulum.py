@@ -18,8 +18,8 @@ def run(initial_state, visualize=True):
     phi0 = np.radians(4)
 
     dt = 0.01
-    dead_time = 0.0
-    add_measurement_noise = False
+    dead_time = 0.05
+    add_measurement_noise = True
     use_quantize = False
     encoder_resolution = 144
     controller_dt = 0.01
@@ -43,17 +43,17 @@ def run(initial_state, visualize=True):
     state_space = StateSpace(dynamics)
 
     Q_mpc = np.diag([5000,8000,7000,8500])
-    R_mpc = np.diag([0.02,0.01])
-    N = 2
+    R_mpc = np.diag([0.022,0.011])
+    N = 10
     horizon_dt = 0.01
     controller = NonlinearMPCControllerCasADi(
         dynamics, Q_mpc, R_mpc, N, controller_dt, horizon_dt
     )
 
     # 状態遷移関数、観測関数、およびヤコビアンを定義
-    f = controller.create_numeric_f
+    f = dynamics.runge_kutta_step
     h = dynamics.observation_function
-    F_jacobian = controller.numerical_jacobian
+    F_jacobian = controller.state_transition_jacobian
     H_jacobian = dynamics.observation_jacobian
 
     # EKFを初期化

@@ -34,9 +34,9 @@ class DoubleInvertedPendulumDynamics(Dynamics):
         return A, B, C, D
     
     def update_state(self, state, t, u):
-        return self.update_state_with_nonlinear_dynamics(state, t, u)
+        return self.update_state_with_nonlinear_dynamics(state, u)
     
-    def update_state_with_nonlinear_dynamics(self, state, t, u):
+    def update_state_with_nonlinear_dynamics(self, state, u):
         # 非線形な動的モデルを用いた更新
         L1 = self.L1
         L2 = self.L2
@@ -188,3 +188,11 @@ class DoubleInvertedPendulumDynamics(Dynamics):
         # 観測関数としては直接的に状態を返すので、単位行列を返す
         return np.eye(4)
     
+    def runge_kutta_step(self, x, t, dt, u):
+        func = self.update_state
+        k1 = func(x, t, u)
+        k2 = func(x + 0.5 * dt * k1, t + 0.5 * dt, u)
+        k3 = func(x + 0.5 * dt * k2, t + 0.5 * dt, u)
+        k4 = func(x + dt * k3, t + dt, u)
+        y = x + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
+        return y

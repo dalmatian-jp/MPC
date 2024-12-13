@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import casadi as ca
 from numpy.linalg import inv
 
 class Simulator:
@@ -23,8 +24,8 @@ class Simulator:
         self.initial_state = initial_state
         self.desired_state = desired_state
         self.dt = dt
-        self.dead_time = dead_time
-        self.R_obs = np.eye(state_space.C.shape[0]) * 0.001
+        self.observation_delay = dead_time
+        self.R_obs = np.eye(state_space.C.shape[0]) * 0.000025
         self.add_measurement_noise = add_measurement_noise
         self.encoder_resolution = encoder_resolution
         self.u_buffer = []
@@ -37,135 +38,344 @@ class Simulator:
         self.time = np.arange(0, simulation_time, dt)
         self.integral_errors = 0
         self.use_quantize = use_quantize
-        
-
         self.success_time = None
         self.diff_history = []
 
         # EKFの初期化
+        # print("Initial state: ", initial_state)
         self.P0 = np.eye(len(initial_state)) * 0.1  # 初期の誤差共分散行列
         self.observer.initialize(initial_state, self.P0)
 
-    def update_and_get_delayed_input(self, t, u):
-        self.u_buffer.append((t, u))
-
-        if t < self.dead_time:
-            u_delayed = np.zeros_like(u)  # u と同じ次元でゼロを返す
-        elif len(self.u_buffer) >= 1:
-            u_delayed = self.u_buffer[0][1]
-        else:
-            u_delayed = np.zeros_like(u)  # バッファが空でも同じ次元でゼロを返す
-
-        # 古い入力を削除
-        while len(self.u_buffer) > 0 and self.u_buffer[0][0] < t - self.dead_time:
-            self.u_buffer.pop(0)
-
-        # return u_delayed
-        return np.zeros_like(u_delayed) #入力なしの挙動を確認
-    
     def verify_jacobian(self, state, u):
         difference = self.controller.verify_state_transition_jacobian(state, u)
         max_difference = np.max(difference)
         if max_difference > 1e-4:
             print(f"Warning: Large difference detected in Jacobian calculation! Max difference: {max_difference:.6f}")
 
-    def run(self):
-        self.com_history = []  # COMの履歴
-        self.cop_history = []  # COPの履歴
+    # def run(self):
+    #     self.com_history = []
+    #     self.cop_history = []
+    #     self.observation_buffer = []
+    #     previous_state = self.state
+    #     steps_delay = int(self.observation_delay / self.dt)
+    #     self.ekf_history = []
+    #     self.input_history = []
+    #     self.observed_states = []
+    #     self.estimated_states = []
+    #     self.states = []
+    #     self.diff_history = []
+    #     self.control_inputs = []
+
+    #     # 初期入力は0で開始
+    #     u_clip = np.zeros(2)
         
-        previous_state = self.state  # 初期状態としての前の状態
-    
+    #     for i, ti in enumerate(self.time):
+    #         print("ti: ", ti)
+    #         # 1. i>0の場合、前回計算したu_clipで実状態を更新
+    #         if i > 0:
+    #             next_state = self.runge_kutta_step(
+    #                 self.state_space.dynamics.update_state,
+    #                 self.state,
+    #                 ti,
+    #                 self.dt,
+    #                 u_clip
+    #             )
+    #             self.state_dot = (next_state - previous_state) / self.dt
+    #             previous_state = next_state
+    #             self.state = self.normalize_state(next_state)
+    #             self.states.append(self.state)
+
+    #             # COM, COP計算
+    #             com_x, com_y = self.state_space.dynamics.calculate_com(self.state)
+    #             self.com_history.append((com_x, com_y))
+    #             grf = self.state_space.dynamics.calculate_grf(self.state, self.state_dot)
+    #             ut = self.state_space.dynamics.calculate_ut(self.state, self.state_dot)
+    #             cop = self.state_space.dynamics.calculate_cop(grf, ut)
+    #             self.cop_history.append((cop))
+
+    #             # 差分履歴更新
+    #             diff = np.abs(self.state[0] - self.desired_state[0]) + np.abs(self.state[2] - self.desired_state[2])
+    #             self.diff_history.append(diff)
+    #             success_length = int(1 / self.dt)
+    #             if len(self.diff_history) > success_length:
+    #                 is_success = np.all(np.array(self.diff_history[-success_length:]) < np.deg2rad(5))
+    #                 if is_success and self.success_time is None:
+    #                     self.success_time = ti
+    #         else:
+    #             # 初期状態を記録（最初はrunge_kutta_stepしない）
+    #             self.states.append(self.state)
+
+    #         # 2. EKFで予測ステップ
+    #         self.observer.predict(u_clip, ti, self.dt)
+
+    #         # 3. 観測値生成
+    #         if self.add_measurement_noise:
+    #             y_k = self.state + np.random.multivariate_normal(
+    #                 np.zeros(self.state.shape), self.R_obs
+    #             )
+    #         else:
+    #             y_k = self.state
+
+    #         # 4. 観測値バッファに保存
+    #         self.observation_buffer.append((ti, y_k))
+    #         while len(self.observation_buffer) > 0 and self.observation_buffer[0][0] < ti - self.observation_delay:
+    #             self.observation_buffer.pop(0)
+
+    #         # 5. 遅延観測値取得
+    #         delayed_observation = self.get_delayed_observation(ti)
+    #         self.observed_states.append(delayed_observation)
+
+    #         # 現在のEKF状態・共分散・入力を記録
+    #         x_est_current = self.observer.get_state_estimate()
+    #         P_est_current = self.observer.get_covariance()
+    #         self.ekf_history.append((ti, x_est_current, P_est_current, u_clip))
+
+    #         delayed_index = i - steps_delay
+
+    #         # 6. 遅延観測が利用可能な場合、過去に戻ってupdate & predict
+    #         if delayed_index >= 0 and delayed_observation is not None:
+    #             t_past, x_past, P_past, _ = self.ekf_history[delayed_index]
+    #             self.observer.set_state_and_cov(x_past, P_past)
+    #             self.observer.update(delayed_observation)
+    #             # 過去から現在まで再予測
+    #             for back_step in range(delayed_index+1, i+1):
+    #                 t_back, _, _, u_back = self.ekf_history[back_step]
+    #                 # print("t_back: ", t_back)
+    #                 self.observer.predict(u_back, t_back, self.dt)
+
+    #         # 7. 更新後、現在の推定状態を取得
+    #         current_est = self.observer.get_state_estimate()
+    #         print("current_est: ", current_est) 
+    #         self.estimated_states.append(current_est)
+
+    #         # 8. 次ステップで使う入力を計算（更新後の最新状態推定に基づく）
+    #         if ti < self.observation_delay:
+    #             u_new = np.zeros(2)
+    #         else:
+    #             u_new = self.controller.control(current_est, self.desired_state, ti)
+    #             print("u_new: ", u_new)
+
+    #         u_new = np.clip(u_new, -500, 500)
+    #         u_clip = u_new
+    #         self.control_inputs.append(u_clip)
+
+    #     self.save_to_csv()
+
+    #     return (
+    #         np.array(self.states),
+    #         np.array(self.estimated_states),
+    #         np.array(self.observed_states),
+    #         np.array(self.control_inputs),
+    #         np.array(self.diff_history),
+    #         self.success_time,
+    #     )
+
+    def run(self):
+        self.com_history = []
+        self.cop_history = []
+        self.observation_buffer = []
+        previous_state = self.state
+        steps_delay = int(self.observation_delay / self.dt)
+        self.ekf_history = []
+        self.input_history = []
+        self.observed_states = []
+        self.estimated_states = []
+        self.states = []
+        self.diff_history = []
+        self.control_inputs = []
+        nu = self.controller.nu
+        nx = self.controller.nx
+        N = 10
+        total = nx*(N+1)+nu*N
+        print(self.state)
+        x_init = ca.DM(self.state)
+        x0 = ca.DM.zeros(total)
+
+        S = self.controller.make_nlp(self.controller.make_RK4, self.controller.compute_stage_cost, self.controller.compute_terminal_cost,self.controller.make_f)
+        T = self.controller.make_integrater(self.controller.make_f)
+
+        X = [x_init]
+        print("X: ", X)
+        U = []
+        x_current = x_init
+        u_clip = np.zeros(2)
+
         for i, ti in enumerate(self.time):
-            # EKFを用いた状態推定を使用
-            current_state = self.observer.get_state_estimate()
+            if i > 0:
+                next_state = self.runge_kutta_step(
+                    self.state_space.dynamics.update_state,
+                    self.state,
+                    ti,
+                    self.dt,
+                    u_clip
+                )
+                self.state_dot = (next_state - previous_state) / self.dt
+                previous_state = next_state
+                self.state = self.normalize_state(next_state)
+                self.states.append(self.state)
 
-            u = self.controller.control(current_state, self.desired_state, ti)
-            u = [0,0]
-            u_clip = np.clip(u, -500, 500)
-            u_delayed = (
-                self.update_and_get_delayed_input(ti, u_clip) if self.dead_time > 0.0 else u_clip
-            )
-            self.control_inputs.append(u)
-            self.delayed_inputs.append(u_delayed)
+                # COM, COP計算
+                com_x, com_y = self.state_space.dynamics.calculate_com(self.state)
+                self.com_history.append((com_x, com_y))
+                grf = self.state_space.dynamics.calculate_grf(self.state, self.state_dot)
+                ut = self.state_space.dynamics.calculate_ut(self.state, self.state_dot)
+                cop = self.state_space.dynamics.calculate_cop(grf, ut)
+                self.cop_history.append((cop))
 
-            # Runge-Kuttaで新しい状態を計算
-            next_state = self.runge_kutta_step(
-                self.state_space.dynamics.update_state,
-                self.state,
-                ti,
-                self.dt,
-                u_delayed,
-            )
-            
-            # state_dotを計算 (時間微分)
-            self.state_dot = (next_state - previous_state) / self.dt
-            previous_state = next_state
+                # 差分履歴更新
+                diff = np.abs(self.state[0] - self.desired_state[0]) + np.abs(self.state[2] - self.desired_state[2])
+                self.diff_history.append(diff)
+                success_length = int(1 / self.dt)
+                if len(self.diff_history) > success_length:
+                    is_success = np.all(np.array(self.diff_history[-success_length:]) < np.deg2rad(5))
+                    if is_success and self.success_time is None:
+                        self.success_time = ti
+            else:
+                # 初期状態を記録（最初はrunge_kutta_stepしない）
+                self.states.append(self.state)
 
-            self.state = self.normalize_state(next_state)
-            self.states.append(self.state)
+            # 2. EKFで予測ステップ
+            self.observer.predict(u_clip, ti, self.dt)
 
-            # COMとCOPを計算
-            com_x, com_y = self.state_space.dynamics.calculate_com(self.state)
-            self.com_history.append((com_x, com_y))
-            
-            grf = self.state_space.dynamics.calculate_grf(self.state, self.state_dot)
-            ut = self.state_space.dynamics.calculate_ut(self.state, self.state_dot)
-            cop = self.state_space.dynamics.calculate_cop(grf, ut)
-            self.cop_history.append((cop))
+            # 3. 観測値生成
+            if self.add_measurement_noise:
+                y_k = self.state + np.random.multivariate_normal(
+                    np.zeros(self.state.shape), self.R_obs
+                )
+            else:
+                y_k = self.state
 
-            # 差分履歴
-            diff = np.abs(self.state[0] - self.desired_state[0]) + np.abs(
-                self.state[2] - self.desired_state[2]
-            )
-            self.diff_history.append(diff)
-            success_length = int(1 / self.dt)
-            is_success = False
-            if len(self.diff_history) > success_length:
-                is_success = np.all(np.array(self.diff_history[-success_length:]) < np.deg2rad(5))
-                if is_success and self.success_time is None:
-                    self.success_time = ti
+            # 4. 観測値バッファに保存
+            self.observation_buffer.append((ti, y_k))
+            while len(self.observation_buffer) > 0 and self.observation_buffer[0][0] < ti - self.observation_delay:
+                self.observation_buffer.pop(0)
 
-            # EKFで予測ステップを行う
-            self.observer.predict(u_delayed)
+            # 5. 遅延観測値取得
+            delayed_observation = self.get_delayed_observation(ti)
+            self.observed_states.append(delayed_observation)
 
-            # 観測値を取得し、ノイズを加える場合の処理
-            if self.state_space.C.shape[0] == 4:
-                if self.add_measurement_noise:
-                    y_k = self.state + np.random.multivariate_normal(
-                        np.zeros(self.state.shape), self.R_obs
-                    )
-                else:
-                    y_k = self.state
-            elif self.state_space.C.shape[0] == 2:
-                if self.add_measurement_noise:
-                    y_k = self.state[[0, 2]] + np.random.multivariate_normal(
-                        np.zeros(2), self.R_obs
-                    )
-                else:
-                    y_k = self.state[[0, 2]]
-            self.observed_states.append(y_k)
+            # 現在のEKF状態・共分散・入力を記録
+            x_est_current = self.observer.get_state_estimate()
+            P_est_current = self.observer.get_covariance()
+            self.ekf_history.append((ti, x_est_current, P_est_current, u_clip))
 
-            # EKFで更新ステップを行う
-            self.observer.update(y_k)
-            self.estimated_states.append(self.observer.get_state_estimate())
+            delayed_index = i - steps_delay
 
-            # 定期的にヤコビアンの検証を行う（例：100回に1回）
-            if i % 100 == 0:
-                self.verify_jacobian(current_state, u_delayed)
+            # 6. 遅延観測が利用可能な場合、過去に戻ってupdate & predict
+            if delayed_index >= 0 and delayed_observation is not None:
+                t_past, x_past, P_past, _ = self.ekf_history[delayed_index]
+                self.observer.set_state_and_cov(x_past, P_past)
+                self.observer.update(delayed_observation)
+                # 過去から現在まで再予測
+                for back_step in range(delayed_index+1, i+1):
+                    t_back, _, _, u_back = self.ekf_history[back_step]
+                    # print("t_back: ", t_back)
+                    self.observer.predict(u_back, t_back, self.dt)
+
+            # 7. 更新後、現在の推定状態を取得
+            current_est = self.observer.get_state_estimate()
+            print("current_est: ", current_est) 
+            self.estimated_states.append(current_est)
+
+            # 8. 次ステップで使う入力を計算（更新後の最新状態推定に基づく）
+            if ti < self.observation_delay:
+                u_new = np.zeros(2)
+            else:
+                current_est = ca.DM(current_est)
+                u_new,x0 = self.controller.compute_optimal_control(S,current_est,x0)
+                u_new = np.array(u_new).reshape(2)
+
+            u_new = np.clip(u_new, -500, 500)
+            u_clip = u_new
+            self.control_inputs.append(u_clip)
 
 
-        # データをCSVに保存
-        self.save_to_csv()
+        print(X)
+        print(U)
 
-        return (
-            np.array(self.states),
-            np.array(self.estimated_states),
-            np.array(self.observed_states),
-            np.array(self.control_inputs),
-            np.array(self.delayed_inputs),
-            np.array(self.diff_history),
-            self.success_time,
-        )
+    # def run(self):
+    #     nu = self.controller.nu
+    #     nx = self.controller.nx
+    #     N = 10
+    #     total = nx * (N + 1) + nu * N
+
+    #     t_span = [0, 10]
+    #     t_eval = np.arange(*t_span, 0.01)
+
+    #     x_init = ca.DM([0.0873, 0, 0, 0])
+    #     x0 = ca.DM.zeros(total)
+
+    #     S = self.controller.make_nlp(
+    #         self.controller.make_RK4,
+    #         self.controller.compute_stage_cost,
+    #         self.controller.compute_terminal_cost,
+    #         self.controller.make_f,
+    #     )
+    #     T = self.controller.make_integrater(self.controller.make_f)
+
+    #     X = [x_init]
+    #     U = []
+    #     x_current = x_init
+
+    #     # ノイズと遅延の処理用
+    #     self.observation_buffer = []
+    #     steps_delay = int(self.observation_delay / self.dt)
+
+    #     for t in t_eval:
+    #         # ノイズ付きの観測値を生成
+    #         if self.add_measurement_noise:
+    #             y_k = x_current + np.random.multivariate_normal(
+    #                 np.zeros(nx), np.eye(nx) * 0.0001
+    #             )
+    #         else:
+    #             y_k = x_current
+
+    #         # 遅延バッファに保存
+    #         self.observation_buffer.append((t, y_k))
+
+    #         # 遅延された観測値を取得
+    #         delayed_observation = None
+    #         if len(self.observation_buffer) > steps_delay:
+    #             delayed_observation = self.observation_buffer[-steps_delay][1]
+
+    #         # EKF予測ステップ
+    #         self.observer.predict(self.controller.prev_u, t, self.dt)
+
+    #         # 遅延された観測値が存在する場合、EKF更新ステップを実行
+    #         if delayed_observation is not None:
+    #             self.observer.update(delayed_observation)
+
+    #         # EKFの現在の推定状態を取得
+    #         x_est = self.observer.get_state_estimate()
+    #         x_est_dm = ca.DM(x_est)  # numpy.ndarray -> CasADi.DM に変換
+
+    #         # 最適制御入力を計算 (推定状態を使用)
+    #         u_opt, x0 = self.controller.compute_optimal_control(S, x_est_dm, x0)
+
+    #         # システムを次の状態に遷移
+    #         x_current = T(x0=x_current, p=u_opt)["xf"]
+    #         X.append(x_current)
+    #         U.append(u_opt)
+
+    #     X.pop()
+    #     X = np.array(X).reshape(t_eval.size, nx)
+    #     U = np.array(U).reshape(t_eval.size, nu)
+
+    #     return X, U
+
+
+
+
+
+    # 新しく追加した関数: 遅延観測値を取得するためのヘルパー
+    def get_delayed_observation(self, current_time):
+        delayed_time = current_time - self.observation_delay
+        for t, obs in self.observation_buffer:
+            if np.isclose(t, delayed_time, atol=1e-3):  # 時刻が一致する観測値を探す
+                # print("observed state: ", obs)
+                return obs
+        return np.zeros_like(self.state)  # データが見つからない場合はゼロを返す
+
 
 
     def save_to_csv(self):
