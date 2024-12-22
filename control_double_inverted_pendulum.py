@@ -43,7 +43,7 @@ def run(initial_state, visualize=True):
     state_space = StateSpace(dynamics)
 
     Q_mpc = np.diag([5000,8000,7000,8500])
-    R_mpc = np.diag([0.022,0.011])
+    R_mpc = np.diag([0.02,0.01])
     N = 10
     horizon_dt = 0.01
     controller = NonlinearMPCControllerCasADi(

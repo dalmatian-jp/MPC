@@ -267,14 +267,14 @@ class Simulator:
                 self.observer.set_state_and_cov(x_past, P_past)
                 self.observer.update(delayed_observation)
                 # 過去から現在まで再予測
-                for back_step in range(delayed_index+1, i+1):
+                for back_step in range(delayed_index, i):
                     t_back, _, _, u_back = self.ekf_history[back_step]
                     # print("t_back: ", t_back)
                     self.observer.predict(u_back, t_back, self.dt)
 
             # 7. 更新後、現在の推定状態を取得
             current_est = self.observer.get_state_estimate()
-            print("current_est: ", current_est) 
+            print("time: ", ti)
             self.estimated_states.append(current_est)
 
             # 8. 次ステップで使う入力を計算（更新後の最新状態推定に基づく）
@@ -289,82 +289,8 @@ class Simulator:
             u_clip = u_new
             self.control_inputs.append(u_clip)
 
-
         print(X)
         print(U)
-
-    # def run(self):
-    #     nu = self.controller.nu
-    #     nx = self.controller.nx
-    #     N = 10
-    #     total = nx * (N + 1) + nu * N
-
-    #     t_span = [0, 10]
-    #     t_eval = np.arange(*t_span, 0.01)
-
-    #     x_init = ca.DM([0.0873, 0, 0, 0])
-    #     x0 = ca.DM.zeros(total)
-
-    #     S = self.controller.make_nlp(
-    #         self.controller.make_RK4,
-    #         self.controller.compute_stage_cost,
-    #         self.controller.compute_terminal_cost,
-    #         self.controller.make_f,
-    #     )
-    #     T = self.controller.make_integrater(self.controller.make_f)
-
-    #     X = [x_init]
-    #     U = []
-    #     x_current = x_init
-
-    #     # ノイズと遅延の処理用
-    #     self.observation_buffer = []
-    #     steps_delay = int(self.observation_delay / self.dt)
-
-    #     for t in t_eval:
-    #         # ノイズ付きの観測値を生成
-    #         if self.add_measurement_noise:
-    #             y_k = x_current + np.random.multivariate_normal(
-    #                 np.zeros(nx), np.eye(nx) * 0.0001
-    #             )
-    #         else:
-    #             y_k = x_current
-
-    #         # 遅延バッファに保存
-    #         self.observation_buffer.append((t, y_k))
-
-    #         # 遅延された観測値を取得
-    #         delayed_observation = None
-    #         if len(self.observation_buffer) > steps_delay:
-    #             delayed_observation = self.observation_buffer[-steps_delay][1]
-
-    #         # EKF予測ステップ
-    #         self.observer.predict(self.controller.prev_u, t, self.dt)
-
-    #         # 遅延された観測値が存在する場合、EKF更新ステップを実行
-    #         if delayed_observation is not None:
-    #             self.observer.update(delayed_observation)
-
-    #         # EKFの現在の推定状態を取得
-    #         x_est = self.observer.get_state_estimate()
-    #         x_est_dm = ca.DM(x_est)  # numpy.ndarray -> CasADi.DM に変換
-
-    #         # 最適制御入力を計算 (推定状態を使用)
-    #         u_opt, x0 = self.controller.compute_optimal_control(S, x_est_dm, x0)
-
-    #         # システムを次の状態に遷移
-    #         x_current = T(x0=x_current, p=u_opt)["xf"]
-    #         X.append(x_current)
-    #         U.append(u_opt)
-
-    #     X.pop()
-    #     X = np.array(X).reshape(t_eval.size, nx)
-    #     U = np.array(U).reshape(t_eval.size, nu)
-
-    #     return X, U
-
-
-
 
 
     # 新しく追加した関数: 遅延観測値を取得するためのヘルパー

@@ -57,7 +57,7 @@ class DoubleInvertedPendulumDynamics(Dynamics):
         ])
         
         f_1 = (
-            u[0] + 1/2 * L1 * L2 * m2 * sin_theta2 * theta2_dot ** 2 -
+            u[0] + 1/2 * L1 * L2 * m2 * sin_theta2 * theta2_dot ** 2 +
             L1 * L2 * m2 * sin_theta2 * theta1_dot * theta2_dot +
             1/2 * g * L2 * m2 * sin_theta12 +
             1/2 * g * L1 * m1 * sin_theta1 -
