@@ -52,19 +52,14 @@ def template_mpc(model, silence_solver = False):
     if silence_solver:
         mpc.settings.supress_ipopt_output()
 
-
     mterm = model.aux['E_kin'] - model.aux['E_pot']
     lterm = -model.aux['E_pot'] + 10 * sum1((model.x['theta'] - model.tvp['theta_set'])**2)
-
 
     mpc.set_objective(mterm=mterm, lterm=lterm)
     mpc.set_rterm(torque=0.1)
 
-
     mpc.bounds['lower', '_u', 'torque'] = -10
     mpc.bounds['upper', '_u', 'torque'] = 10
-
-
 
     # Values for the masses (for robust MPC)
     m1_var = 0.2*np.array([1, 0.95, 1.05])

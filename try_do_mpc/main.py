@@ -70,7 +70,7 @@ Set initial state
 """
 
 if scenario == 1:
-    simulator.x0['theta'] = [0.9 * np.pi, 0.5 * np.pi]  # 振り子1と振り子2の初期角度
+    simulator.x0['theta'] = [0.2618, 0]  # 振り子1と振り子2の初期角度
 elif scenario == 2:
     simulator.x0['theta'] = [0.0, 0.0]  # 振り子1と振り子2が鉛直
 else:
@@ -164,7 +164,7 @@ Run MPC main loop:
 """
 time_list = []
 
-n_steps = 240
+n_steps = 120
 for k in range(n_steps):
     tic = time.time()
     u0 = mpc.make_step(x0)
