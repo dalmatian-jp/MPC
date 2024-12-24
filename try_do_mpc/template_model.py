@@ -1,25 +1,3 @@
-#
-#   This file is part of do-mpc
-#
-#   do-mpc: An environment for the easy, modular and efficient implementation of
-#        robust nonlinear model predictive control
-#
-#   Copyright (c) 2014-2019 Sergio Lucia, Alexandru Tatulea-Codrean
-#                        TU Dortmund. All rights reserved
-#
-#   do-mpc is free software: you can redistribute it and/or modify
-#   it under the terms of the GNU Lesser General Public License as
-#   published by the Free Software Foundation, either version 3
-#   of the License, or (at your option) any later version.
-#
-#   do-mpc is distributed in the hope that it will be useful,
-#   but WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#   GNU Lesser General Public License for more details.
-#
-#   You should have received a copy of the GNU General Public License
-#   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
-
 import numpy as np
 from casadi import *
 from casadi.tools import *
@@ -32,11 +10,7 @@ import do_mpc
 
 
 def template_model(symvar_type='SX'):
-    """
-    --------------------------------------------------------------------------
-    template_model: Variables / RHS / AUX
-    --------------------------------------------------------------------------
-    """
+    
     model_type = 'continuous' # either 'discrete' or 'continuous'
     model = do_mpc.model.Model(model_type, symvar_type)
 
@@ -50,8 +24,8 @@ def template_model(symvar_type='SX'):
     I1 = 9.21
     I2 = 5.35
 
-    m1 = model.set_variable('_p', 'm1')
-    m2 = model.set_variable('_p', 'm2')
+    # m1 = 1.0
+    # m2 = 1.0
 
     g = 9.8 # m/s^2, gravity
 
@@ -72,12 +46,9 @@ def template_model(symvar_type='SX'):
     # Input struct (optimization variables):
     tau = model.set_variable('_u', 'torque', (2, 1))  # Control torques for the two joints
 
-
     # Differential equations
     model.set_rhs('theta', dtheta)
     model.set_rhs('dtheta', ddtheta)
-
-
 
     # Euler Lagrange equations for the DIP system (in the form f(x,u,z) = 0)
     euler_lagrange = vertcat(
