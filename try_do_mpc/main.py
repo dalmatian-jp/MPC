@@ -1,25 +1,3 @@
-#
-#   This file is part of do-mpc
-#
-#   do-mpc: An environment for the easy, modular and efficient implementation of
-#        robust nonlinear model predictive control
-#
-#   Copyright (c) 2014-2019 Sergio Lucia, Alexandru Tatulea-Codrean
-#                        TU Dortmund. All rights reserved
-#
-#   do-mpc is free software: you can redistribute it and/or modify
-#   it under the terms of the GNU Lesser General Public License as
-#   published by the Free Software Foundation, either version 3
-#   of the License, or (at your option) any later version.
-#
-#   do-mpc is distributed in the hope that it will be useful,
-#   but WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#   GNU Lesser General Public License for more details.
-#
-#   You should have received a copy of the GNU General Public License
-#   along with do-mpc.  If not, see <http://www.gnu.org/licenses/>.
-
 import numpy as np
 import matplotlib.pyplot as plt
 from casadi import *
@@ -129,12 +107,8 @@ ax2 = plt.subplot2grid((4, 2), (0, 1))
 ax3 = plt.subplot2grid((4, 2), (1, 1))
 ax5 = plt.subplot2grid((4, 2), (2, 1))
 
-ax2.set_ylabel('$E_{kin}$ [J]')
-ax3.set_ylabel('$E_{pot}$ [J]')
 ax5.set_ylabel('Input torque [Nm]')
 
-mpc_graphics.add_line(var_type='_aux', var_name='E_kin', axis=ax2)
-mpc_graphics.add_line(var_type='_aux', var_name='E_pot', axis=ax3)
 mpc_graphics.add_line(var_type='_u', var_name='torque_0', axis=ax5)  # torque_0を追加
 mpc_graphics.add_line(var_type='_u', var_name='torque_1', axis=ax5)  # torque_1を追加
 
