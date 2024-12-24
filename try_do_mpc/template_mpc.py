@@ -52,54 +52,24 @@ def template_mpc(model, silence_solver = False):
     if silence_solver:
         mpc.settings.supress_ipopt_output()
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
     theta = model.x['theta']
     dtheta = model.x['dtheta']
     theta_set = model.tvp['theta_set']
     dtheta_set = model.tvp['dtheta_set']
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 
     mterm = model.aux['E_kin'] - model.aux['E_pot']
     lterm = 5000*(theta[0]-theta_set[0])**2 \
       + 8000*(theta[1]-theta_set[1])**2 \
       + 7000*(dtheta[0]-dtheta_set[0])**2 \
       + 8500*(dtheta[1]-dtheta_set[1])**2
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
 
     mpc.set_objective(mterm=mterm, lterm=lterm)
     mpc.set_rterm(
         torque_0=0.02,  # torque[0]に対する重み
         torque_1=0.01   # torque[1]に対する重み
     )
-<<<<<<< Updated upstream
-
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
 
 
-
-<<<<<<< Updated upstream
-
-    # Values for the masses (for robust MPC)
-    m1_var = 0.2*np.array([1, 0.95, 1.05])
-    m2_var = 0.2*np.array([1, 0.95, 1.05])
-    mpc.set_uncertainty_values(m1=m1_var, m2=m2_var)
-=======
-
-
-=======
->>>>>>> Stashed changes
     # Set torque constraints for theta1 and theta2 separately
     mpc.bounds['lower', '_u', 'torque_0'] = -20  # Lower bound for theta1 torque
     mpc.bounds['upper', '_u', 'torque_0'] = 20   # Upper bound for theta1 torque
@@ -111,16 +81,6 @@ def template_mpc(model, silence_solver = False):
     mpc.bounds['upper', '_x', 'theta', 0] = 0.53   # Upper bound for theta1 angle
     mpc.bounds['lower', '_x', 'theta', 1] = -0.53  # Lower bound for theta2 angle
     mpc.bounds['upper', '_x', 'theta', 1] = 0.87   # Upper bound for theta2 angle
-
-
-    # # Values for the masses (for robust MPC)
-    # m1_var = 0.2*np.array([1, 0.95, 1.05])
-    # m2_var = 0.2*np.array([1, 0.95, 1.05])
-    # mpc.set_uncertainty_values(m1=m1_var, m2=m2_var)
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 
 
     tvp_template = mpc.get_tvp_template()
