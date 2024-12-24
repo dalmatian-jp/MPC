@@ -71,7 +71,11 @@ Set initial state
 
 if scenario == 1:
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     simulator.x0['theta'] = [0.9 * np.pi, 0.5 * np.pi]  # 振り子1と振り子2の初期角度
+=======
+    simulator.x0['theta'] = [0.07, 0]  # 振り子1と振り子2の初期角度
+>>>>>>> Stashed changes
 =======
     simulator.x0['theta'] = [0.07, 0]  # 振り子1と振り子2の初期角度
 >>>>>>> Stashed changes
