@@ -70,7 +70,11 @@ Set initial state
 """
 
 if scenario == 1:
+<<<<<<< Updated upstream
     simulator.x0['theta'] = [0.9 * np.pi, 0.5 * np.pi]  # 振り子1と振り子2の初期角度
+=======
+    simulator.x0['theta'] = [0.07, 0]  # 振り子1と振り子2の初期角度
+>>>>>>> Stashed changes
 elif scenario == 2:
     simulator.x0['theta'] = [0.0, 0.0]  # 振り子1と振り子2が鉛直
 else:
@@ -89,8 +93,8 @@ Setup graphic:
 """
 
 # Function to create lines:
-L1 = 0.5  # m, length of the first rod
-L2 = 0.5  # m, length of the second rod
+L1 = 0.9  # m, length of the first rod
+L2 = 0.88  # m, length of the second rod
 def pendulum_bars(x):
     x = x.flatten()
     # Get the x, y coordinates of the two bars for the given state x.
@@ -135,7 +139,8 @@ ax5.set_ylabel('Input torque [Nm]')
 
 mpc_graphics.add_line(var_type='_aux', var_name='E_kin', axis=ax2)
 mpc_graphics.add_line(var_type='_aux', var_name='E_pot', axis=ax3)
-mpc_graphics.add_line(var_type='_u', var_name='torque', axis=ax5)
+mpc_graphics.add_line(var_type='_u', var_name='torque_0', axis=ax5)  # torque_0を追加
+mpc_graphics.add_line(var_type='_u', var_name='torque_1', axis=ax5)  # torque_1を追加
 
 ax1.axhline(0, color='black')
 
@@ -149,8 +154,8 @@ for ax in [ax2, ax3, ax5]:
 
 ax5.set_xlabel('time [s]')
 
-bar1 = ax1.plot([], [], '-o', linewidth=5, markersize=10)
-bar2 = ax1.plot([], [], '-o', linewidth=5, markersize=10)
+bar1 = ax1.plot([], [], '-o', linewidth=5, markersize=10, label="torque_0")
+bar2 = ax1.plot([], [], '-o', linewidth=5, markersize=10, label="torque_1")
 
 ax1.set_xlim(-1.8, 1.8)
 ax1.set_ylim(-1.2, 1.2)
@@ -176,8 +181,8 @@ for k in range(n_steps):
 
     if show_animation:
         line1, line2 = pendulum_bars(x0)
-        bar1[0].set_data(line1[0], line1[1])
-        bar2[0].set_data(line2[0], line2[1])
+        bar1[0].set_data(line1[0], line1[1])  # torque_0のデータ
+        bar2[0].set_data(line2[0], line2[1])  # torque_1のデータ
         mpc_graphics.plot_results()
         mpc_graphics.plot_predictions()
         mpc_graphics.reset_axes()

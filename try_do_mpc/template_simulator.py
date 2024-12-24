@@ -49,15 +49,6 @@ def template_simulator(model):
 
     simulator.set_param(**params_simulator)
 
-    p_num = simulator.get_p_template()
-
-    p_num['m1'] = 0.2
-    p_num['m2'] = 0.2
-    def p_fun(t_now):
-        return p_num
-
-    simulator.set_p_fun(p_fun)
-
     tvp_template = simulator.get_tvp_template()
 
     def tvp_fun(t_ind):

@@ -41,8 +41,7 @@ def template_model(symvar_type='SX'):
     model = do_mpc.model.Model(model_type, symvar_type)
 
     # Certain parameters
-    m1 = 28  # kg, mass of the first rod
-    m2 = 53  # kg, mass of the second rod
+
     L1 = 0.9  #m, length of the first rod
     L2 = 0.88  #m, length of the second rod
     r1 = 0.58
@@ -50,8 +49,16 @@ def template_model(symvar_type='SX'):
     I1 = 9.21
     I2 = 5.35
 
-    m1 = model.set_variable('_p', 'm1')
-    m2 = model.set_variable('_p', 'm2')
+    #jafari
+    L1 = 0.78  #m, length of the first rod
+    L2 = 0.73  #m, length of the second rod
+    r1 = L1/2
+    r2 = L2/2
+    I1 = 0.35
+    I2 = 0.25
+
+    m1 = 11.41  # kg, mass of the first rod
+    m2 = 50.14  # kg, mass of the second rod
 
     g = 9.8 # m/s^2, gravity
 
@@ -61,6 +68,7 @@ def template_model(symvar_type='SX'):
 
     # Setpoint angles (target positions):
     theta_set = model.set_variable('_tvp', 'theta_set', (2, 1))
+    dtheta_set = model.set_variable('_tvp', 'dtheta_set', (2, 1))
 
     # States struct (optimization variables):
     theta = model.set_variable('_x', 'theta', (2, 1))  # Angles for the two links
@@ -70,7 +78,8 @@ def template_model(symvar_type='SX'):
     ddtheta = model.set_variable('_z', 'ddtheta', (2, 1))  # Angular accelerations for the two links
 
     # Input struct (optimization variables):
-    tau = model.set_variable('_u', 'torque', (2, 1))  # Control torques for the two joints
+    torque_0 = model.set_variable('_u', 'torque_0')  # torque[0]の定義
+    torque_1 = model.set_variable('_u', 'torque_1')  # torque[1]の定義
 
 
     # Differential equations
@@ -84,12 +93,12 @@ def template_model(symvar_type='SX'):
         # 1
         (h1 + 2 * h2 * cos(theta[1])) * ddtheta[0] + (h2 + h3 * cos(theta[1])) * ddtheta[1] - 
         h2 * sin(theta[1]) * dtheta[0] * dtheta[1] - h2 * sin(theta[1]) * (dtheta[0] + dtheta[1]) * dtheta[1]
-        - g * ((m1 * r1 + m2 * L1) * sin(theta[0]) + m2 * r2 * sin(theta[0]+theta[1])) - tau[0],
+        - g * ((m1 * r1 + m2 * L1) * sin(theta[0]) + m2 * r2 * sin(theta[0]+theta[1])) - torque_0,
         # 2
         (h2 + h3 * cos(theta[1])) * ddtheta[0] + 
         h3 * ddtheta[1] + 
         h2 * sin(theta[1]) * dtheta[0] * dtheta[0] - 
-        g * m2 * r2 * sin(theta[0]+theta[1]) - tau[1]
+        g * m2 * r2 * sin(theta[0]+theta[1]) - torque_1
     )
 
     model.set_alg('euler_lagrange', euler_lagrange)
